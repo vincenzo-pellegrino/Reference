@@ -78,37 +78,21 @@ L'azienda gestisce **43 tecnologie database** distribuite su 10 categorie (RDBMS
 | Graph DB | 2 | Neo4j, Amazon Neptune |
 | **Totale** | **43** | |
 
-### 2.3 — Distribuzione per Categoria (Grafico Plotly)
+### 2.3 — Distribuzione per Categoria
 
-> **Nota:** Per visualizzare il grafico interattivo, aprire il file `grafici-executive.html` nel browser. Di seguito il codice Plotly per generarlo.
+```
+           43 Database Aziendali — Distribuzione per Categoria
 
-```html
-<div id="chart-categorie"></div>
-<script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
-<script>
-var data = [{
-  values: [10, 8, 5, 5, 4, 2, 4, 1, 2, 2],
-  labels: ['RDBMS On-prem (10)', 'RDBMS Cloud (8)', 'NoSQL Document (5)',
-           'NoSQL Key-Value (5)', 'NoSQL Wide-Column (4)', 'In-Memory (2)',
-           'Embedded (4)', 'Data Warehouse (1)', 'Time-Series (2)', 'Graph (2)'],
-  type: 'pie',
-  hole: 0.4,
-  marker: {
-    colors: ['#0078D4','#2B88D8','#00BCF2','#FFB900','#E81123',
-             '#8661C5','#107C10','#767676','#FF8C00','#5C2D91']
-  },
-  textinfo: 'label+value',
-  textposition: 'outside',
-  textfont: { size: 11 }
-}];
-var layout = {
-  title: { text: '43 Database Aziendali — Distribuzione per Categoria', font: { size: 16 } },
-  showlegend: false,
-  height: 500,
-  margin: { t: 60, b: 20, l: 20, r: 20 }
-};
-Plotly.newPlot('chart-categorie', data, layout);
-</script>
+  RDBMS On-prem (10)    ████████████████████████  23%
+  RDBMS Cloud (8)       ███████████████████       19%
+  NoSQL Document (5)    ████████████              12%
+  NoSQL Key-Value (5)   ████████████              12%
+  NoSQL Wide-Column (4) █████████                  9%
+  In-Memory (2)         █████                      5%
+  Embedded (4)          █████████                  9%
+  Data Warehouse (1)    ██                         2%
+  Time-Series (2)       █████                      5%
+  Graph (2)             █████                      5%
 ```
 
 ### 2.4 — Addon: Capacità Vector DB
@@ -136,33 +120,20 @@ Alcuni database del parco offrono funzionalità vector search come addon:
 | ❌ Nessun Supporto Nativo | 16 | 37% | PostgreSQL/MySQL/MongoDB/Redis on-prem, MariaDB, Cassandra, Sybase, DB embedded |
 | **Totale** | **43** | **100%** | |
 
-### 3.2 — Compatibilità Entra ID (Grafico Plotly)
+### 3.2 — Compatibilità Entra ID
 
-```html
-<div id="chart-entra"></div>
-<script>
-var data = [{
-  x: ['Nativo CP+DP', 'Indiretto\n(SAML/OIDC)', 'Solo CP\nFederation', 'Nessun\nSupporto'],
-  y: [8, 9, 10, 16],
-  type: 'bar',
-  marker: {
-    color: ['#107C10', '#FFB900', '#FF8C00', '#E81123']
-  },
-  text: ['8 (19%)', '9 (21%)', '10 (23%)', '16 (37%)'],
-  textposition: 'outside',
-  textfont: { size: 13, color: '#333' }
-}];
-var layout = {
-  title: { text: 'Compatibilità Entra ID — 43 Database', font: { size: 16 } },
-  yaxis: { title: 'Numero di Database', range: [0, 20] },
-  xaxis: { title: '' },
-  height: 420,
-  margin: { t: 60, b: 80, l: 60, r: 20 },
-  plot_bgcolor: '#FAFAFA'
-};
-Plotly.newPlot('chart-entra', data, layout);
-</script>
 ```
+           Compatibilità Entra ID — 43 Database
+
+  ✅ Nativo CP+DP          ████████  8 (19%)
+  🔶 Indiretto (SAML/OIDC) █████████  9 (21%)
+  🔶 Solo CP Federation    ██████████ 10 (23%)
+  ❌ Nessun Supporto       ████████████████ 16 (37%)
+                           ─────────────────────
+                           0    4    8   12   16   20
+```
+
+> **Dato chiave:** Per l'**81%** del parco servono compensazioni via **PAM** (credential vaulting + session proxy tramite Safeguard).
 
 ### 3.3 — Dettaglio Completo per Livello
 
@@ -278,7 +249,7 @@ La strategia corretta è l'**integrazione a layer** delle quattro piattaforme sp
 │                    MICROSOFT ENTRA ID  (IdP)                         │
 │  Autenticazione OIDC/SAML · MFA · Conditional Access · Token auth   │
 │  Gruppi/ruoli · Managed Identity · Federation verso AWS/GCP         │
-└──��─────┬─────────────────────┬──────────────────────┬───────────────┘
+└─────────┬─────────────────────┬──────────────────────┬───────────────┘
          │ SAML 2.0            │                      │ Managed Identity
          ▼                     │                      │
 ┌──────────────────────────────┴──────────────────────┴───────────────┐
@@ -352,39 +323,20 @@ La strategia corretta è l'**integrazione a layer** delle quattro piattaforme sp
 
 **Tutti i 17 requisiti sono coperti dall'architettura integrata.** Nessun singolo pilastro li copre da solo.
 
-### 6.2 — Distribuzione Responsabilità per Pilastro (Grafico Plotly)
+### 6.2 — Distribuzione Responsabilità per Pilastro
 
-```html
-<div id="chart-requisiti"></div>
-<script>
-var data = [{
-  x: ['Entra ID', 'IMAC', 'Safeguard', 'Splunk'],
-  y: [3, 3, 7, 1],
-  name: 'Primario',
-  type: 'bar',
-  marker: { color: '#0078D4' },
-  text: ['3', '3', '7', '1'],
-  textposition: 'outside'
-}, {
-  x: ['Entra ID', 'IMAC', 'Safeguard', 'Splunk'],
-  y: [8, 5, 5, 11],
-  name: 'Contributo',
-  type: 'bar',
-  marker: { color: '#00BCF2' },
-  text: ['8', '5', '5', '11'],
-  textposition: 'outside'
-}];
-var layout = {
-  title: { text: 'Copertura dei 17 Requisiti per Pilastro', font: { size: 16 } },
-  barmode: 'stack',
-  yaxis: { title: 'Numero requisiti', range: [0, 18] },
-  height: 420,
-  margin: { t: 60, b: 60, l: 60, r: 20 },
-  legend: { orientation: 'h', y: -0.15 },
-  plot_bgcolor: '#FAFAFA'
-};
-Plotly.newPlot('chart-requisiti', data, layout);
-</script>
+```
+        Copertura dei 17 Requisiti per Pilastro
+        (Primario + Contributo)
+
+  Entra ID   ██████████████████████  3 Primario + 8 Contributo = 11
+  IMAC       ████████████████        3 Primario + 5 Contributo = 8
+  Safeguard  ████████████████████████ 7 Primario + 5 Contributo = 12
+  Splunk     ██████████��█████████████ 1 Primario + 11 Contributo = 12
+             ─────────────────────────
+             0    2    4    6    8   10   12   14   16
+
+  ■ Primario    □ Contributo
 ```
 
 ---
@@ -408,29 +360,25 @@ DBeaver si colloca come **front-end client** per utenze interattive, **sotto** i
 | ✅ Interfaccia web (CloudBeaver) | ❌ No campagne attestazione |
 | | ❌ Se bypassato, perde ogni visibilità |
 
-### Mappatura DBeaver vs 17 Requisiti (Grafico Plotly)
+### Mappatura DBeaver vs 17 Requisiti
 
-```html
-<div id="chart-dbeaver"></div>
-<script>
-var data = [{
-  values: [1, 6, 10],
-  labels: ['✅ Coperto (1)', '🔶 Parziale (6)', '❌ Non coperto (10)'],
-  type: 'pie',
-  marker: { colors: ['#107C10', '#FFB900', '#E81123'] },
-  textinfo: 'label+percent',
-  textfont: { size: 13 },
-  hole: 0.35
-}];
-var layout = {
-  title: { text: 'DBeaver vs 17 Requisiti', font: { size: 16 } },
-  height: 400,
-  margin: { t: 60, b: 20, l: 20, r: 20 },
-  showlegend: false
-};
-Plotly.newPlot('chart-dbeaver', data, layout);
-</script>
 ```
+             DBeaver Team Edition vs 17 Requisiti
+
+        ┌─────────────────────────────────────────┐
+        │                                         │
+        │    ✅ Coperto:      1 /17  ( 6%)        │
+        │    🔶 Parziale:     6 /17  (35%)        │
+        │    ❌ Non coperto: 10 /17  (59%)        │
+        │                                         │
+        │    ██                      6%  Coperto   │
+        │    ████████████           35%  Parziale  │
+        │    ████████████████████   59%  Non cop.  │
+        │                                         │
+        └─────────────────────────────────────────┘
+```
+
+> **Verdetto:** DBeaver copre solo **1 requisito su 17** in autonomia. Non è un sostituto dei 4 pilastri.
 
 ### Verdetto
 
