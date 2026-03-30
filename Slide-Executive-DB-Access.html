@@ -131,16 +131,16 @@
 
 <!-- SLIDE 4: REQUISITI + DBEAVER -->
 <div class="slide" id="slide4">
-  <h1>17 Requisiti: Copertura per Pilastro & Valutazione DBeaver</h1>
+  <h1>17 Requisiti: Copertura per Pilastro &amp; Valutazione DBeaver</h1>
   <div class="row" style="flex:1; min-height:0;">
     <div class="col" style="flex:1.1;">
       <h3 style="margin-top:0;">Responsabilità Primaria per Area</h3>
       <table>
         <tr><th>Area Funzionale</th><th>Primario</th><th>Requisiti</th></tr>
-        <tr><td>Autenticazione & Token</td><td>Entra ID</td><td>#1, #2, #16</td></tr>
-        <tr><td>Governance & Lifecycle</td><td>IMAC</td><td>#6, #7, #8, #11</td></tr>
+        <tr><td>Autenticazione &amp; Token</td><td>Entra ID</td><td>#1, #2, #16</td></tr>
+        <tr><td>Governance &amp; Lifecycle</td><td>IMAC</td><td>#6, #7, #8, #11</td></tr>
         <tr><td>Privileged Access</td><td>Safeguard</td><td>#5, #13, #14, #15, #17</td></tr>
-        <tr><td>Audit & Compliance</td><td>Splunk</td><td>#9, #10</td></tr>
+        <tr><td>Audit &amp; Compliance</td><td>Splunk</td><td>#9, #10</td></tr>
         <tr><td>Multi-pilastro</td><td>Cooperazione</td><td>#3, #4, #12</td></tr>
       </table>
       <h3>DBeaver Team Edition — Verdetto</h3>
@@ -152,8 +152,8 @@
       <p class="small" style="margin-top:4px;">DBeaver = front-end client <strong>sotto</strong> i pilastri.<br>Non copre: A2A, vault, rotation, session recording, SCIM, attestazione.</p>
     </div>
     <div class="col" style="flex:0.9;">
-      <div id="chart4a" class="plotly-chart" style="height:48%;"></div>
-      <div id="chart4b" class="plotly-chart" style="height:48%;"></div>
+      <div id="chart4a" style="width:100%; height:180px;"></div>
+      <div id="chart4b" style="width:100%; height:180px;"></div>
     </div>
   </div>
   <span class="slide-num">4 / 5</span>
@@ -196,89 +196,106 @@
 
 <!-- PLOTLY SCRIPTS -->
 <script>
-// Slide 2: Entra ID Pie
-Plotly.newPlot('chart2', [{
-  values: [8, 9, 10, 16],
-  labels: ['Nativo CP+DP (8)', 'Indiretto SAML/OIDC (9)', 'Solo CP Federation (10)', 'Nessun Supporto (16)'],
-  type: 'pie', hole: 0.4,
-  marker: { colors: ['#107C10','#FFB900','#FF8C00','#E81123'] },
-  textinfo: 'percent', textposition: 'inside',
-  textfont: { size: 12, color: '#fff' },
-  sort: false
-}], {
-  showlegend: true,
-  legend: { font: { size: 10 }, orientation: 'h', y: -0.05, x: 0.5, xanchor: 'center' },
-  margin: { t: 10, b: 40, l: 10, r: 10 },
-  paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)'
-}, { responsive: true, displayModeBar: false });
+// Wait for DOM to be fully loaded before rendering charts
+document.addEventListener('DOMContentLoaded', function() {
 
-// Slide 3: Treemap Architecture (replaces broken sunburst)
-Plotly.newPlot('chart3', [{
-  type: 'treemap',
-  labels: ['Architettura','IMAC','Entra ID','Safeguard','Splunk','43 DB',
-    'Workflow','Provisioning','Attestazione',
-    'SSO/MFA','Token Auth','Federation',
-    'Vault SPP','Proxy SPS','Session Rec','A2A API',
-    'Correlazione','Alerting','Compliance',
-    'RBAC locale','Audit nativo'],
-  parents: ['','Architettura','Architettura','Architettura','Architettura','Architettura',
-    'IMAC','IMAC','IMAC',
-    'Entra ID','Entra ID','Entra ID',
-    'Safeguard','Safeguard','Safeguard','Safeguard',
-    'Splunk','Splunk','Splunk',
-    '43 DB','43 DB'],
-  values: [0, 3, 3, 4, 3, 2, 1,1,1, 1,1,1, 1,1,1,1, 1,1,1, 1,1],
-  branchvalues: 'total',
-  marker: { colors: ['#E8F0FE','#8661C5','#0078D4','#E81123','#FFB900','#107C10',
-    '#B39DDB','#B39DDB','#B39DDB',
-    '#42A5F5','#42A5F5','#42A5F5',
-    '#EF5350','#EF5350','#EF5350','#EF5350',
-    '#FFD54F','#FFD54F','#FFD54F',
-    '#66BB6A','#66BB6A'] },
-  textinfo: 'label',
-  textfont: { size: 12 },
-  pathbar: { visible: false }
-}], {
-  margin: { t: 5, b: 5, l: 5, r: 5 },
-  paper_bgcolor: 'rgba(0,0,0,0)'
-}, { responsive: true, displayModeBar: false });
+  // Slide 2: Entra ID Pie
+  Plotly.newPlot('chart2', [{
+    values: [8, 9, 10, 16],
+    labels: ['Nativo CP+DP (8)', 'Indiretto SAML/OIDC (9)', 'Solo CP Federation (10)', 'Nessun Supporto (16)'],
+    type: 'pie', hole: 0.4,
+    marker: { colors: ['#107C10','#FFB900','#FF8C00','#E81123'] },
+    textinfo: 'percent', textposition: 'inside',
+    textfont: { size: 12, color: '#fff' },
+    sort: false
+  }], {
+    showlegend: true,
+    legend: { font: { size: 10 }, orientation: 'h', y: -0.05, x: 0.5, xanchor: 'center' },
+    margin: { t: 10, b: 40, l: 10, r: 10 },
+    paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)'
+  }, { responsive: true, displayModeBar: false });
 
-// Slide 4a: Stacked Bar
-Plotly.newPlot('chart4a', [{
-  x: ['Entra ID','IMAC','Safeguard','Splunk'],
-  y: [3,3,7,1], name: 'Primario', type: 'bar',
-  marker: { color: '#0078D4' },
-  text: ['3','3','7','1'], textposition: 'inside', textfont:{color:'#fff',size:11}
-},{
-  x: ['Entra ID','IMAC','Safeguard','Splunk'],
-  y: [8,5,5,11], name: 'Contributo', type: 'bar',
-  marker: { color: '#90CAF9' },
-  text: ['8','5','5','11'], textposition: 'inside', textfont:{color:'#333',size:11}
-}], {
-  barmode: 'stack', showlegend: true,
-  legend: { font:{size:9}, orientation:'h', y:1.15, x:0.5, xanchor:'center' },
-  yaxis: { title: 'Requisiti', titlefont:{size:10}, range:[0,16], tickfont:{size:9} },
-  xaxis: { tickfont:{size:10} },
-  margin: { t: 25, b: 25, l: 35, r: 5 },
-  paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: '#FAFAFA'
-}, { responsive: true, displayModeBar: false });
+  // Slide 3: Sunburst Architecture — fixed with explicit height
+  Plotly.newPlot('chart3', [{
+    type: 'sunburst',
+    labels: [
+      'Architettura',
+      'Entra ID', 'IMAC', 'Safeguard', 'Splunk', '43 DB',
+      'SSO / MFA', 'Token Auth', 'Cond. Access',
+      'Workflow', 'Provisioning', 'Attestazione',
+      'Vault SPP', 'Proxy SPS', 'Session Rec', 'A2A API',
+      'Correlazione', 'Alerting', 'Compliance',
+      'RBAC locale', 'Audit nativo'
+    ],
+    parents: [
+      '',
+      'Architettura', 'Architettura', 'Architettura', 'Architettura', 'Architettura',
+      'Entra ID', 'Entra ID', 'Entra ID',
+      'IMAC', 'IMAC', 'IMAC',
+      'Safeguard', 'Safeguard', 'Safeguard', 'Safeguard',
+      'Splunk', 'Splunk', 'Splunk',
+      '43 DB', '43 DB'
+    ],
+    marker: {
+      colors: [
+        '#E8F0FE',
+        '#0078D4', '#8661C5', '#E81123', '#FFB900', '#107C10',
+        '#42A5F5', '#42A5F5', '#42A5F5',
+        '#B39DDB', '#B39DDB', '#B39DDB',
+        '#EF5350', '#EF5350', '#EF5350', '#EF5350',
+        '#FFD54F', '#FFD54F', '#FFD54F',
+        '#66BB6A', '#66BB6A'
+      ]
+    },
+    textinfo: 'label',
+    textfont: { size: 11 },
+    insidetextorientation: 'radial',
+    hoverinfo: 'label'
+  }], {
+    margin: { t: 5, b: 5, l: 5, r: 5 },
+    paper_bgcolor: 'rgba(0,0,0,0)',
+    width: 420,
+    height: 370
+  }, { responsive: false, displayModeBar: false });
 
-// Slide 4b: DBeaver Donut
-Plotly.newPlot('chart4b', [{
-  values: [1,6,10],
-  labels: ['Coperto (1)','Parziale (6)','Non coperto (10)'],
-  type: 'pie', hole: 0.4,
-  marker: { colors: ['#107C10','#FFB900','#E81123'] },
-  textinfo: 'percent', textposition: 'inside',
-  textfont: { size: 12, color: '#fff' },
-  sort: false
-}], {
-  showlegend: true,
-  legend: { font:{size:9}, orientation:'h', y:-0.05, x:0.5, xanchor: 'center' },
-  margin: { t: 5, b: 30, l: 5, r: 5 },
-  paper_bgcolor: 'rgba(0,0,0,0)',
-  annotations: [{ text:'DBeaver<br>vs 17 Req', showarrow:false, font:{size:10,color:'#555'} }]
-}, { responsive: true, displayModeBar: false });
+  // Slide 4a: Stacked Bar — Requirements by Pillar
+  Plotly.newPlot('chart4a', [{
+    x: ['Entra ID','IMAC','Safeguard','Splunk'],
+    y: [3,3,7,1], name: 'Primario', type: 'bar',
+    marker: { color: '#0078D4' },
+    text: ['3','3','7','1'], textposition: 'inside', textfont:{color:'#fff',size:11}
+  },{
+    x: ['Entra ID','IMAC','Safeguard','Splunk'],
+    y: [8,5,5,11], name: 'Contributo', type: 'bar',
+    marker: { color: '#90CAF9' },
+    text: ['8','5','5','11'], textposition: 'inside', textfont:{color:'#333',size:11}
+  }], {
+    barmode: 'stack', showlegend: true,
+    legend: { font:{size:9}, orientation:'h', y:1.15, x:0.5, xanchor:'center' },
+    yaxis: { title: 'Requisiti', titlefont:{size:10}, range:[0,16], tickfont:{size:9} },
+    xaxis: { tickfont:{size:10} },
+    margin: { t: 25, b: 25, l: 35, r: 5 },
+    paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: '#FAFAFA'
+  }, { responsive: true, displayModeBar: false });
+
+  // Slide 4b: DBeaver Donut
+  Plotly.newPlot('chart4b', [{
+    values: [1,6,10],
+    labels: ['Coperto (1)','Parziale (6)','Non coperto (10)'],
+    type: 'pie', hole: 0.4,
+    marker: { colors: ['#107C10','#FFB900','#E81123'] },
+    textinfo: 'percent', textposition: 'inside',
+    textfont: { size: 12, color: '#fff' },
+    sort: false
+  }], {
+    showlegend: true,
+    legend: { font:{size:9}, orientation:'h', y:-0.05, x:0.5, xanchor:'center' },
+    margin: { t: 5, b: 30, l: 5, r: 5 },
+    paper_bgcolor: 'rgba(0,0,0,0)',
+    annotations: [{ text:'DBeaver<br>vs 17 Req', showarrow:false, font:{size:10,color:'#555'} }]
+  }, { responsive: true, displayModeBar: false });
+
+});
 </script>
 
 </body>
