@@ -51,6 +51,28 @@
     background: linear-gradient(135deg, #0078D4, #8661C5);
     color: #fff; font-size: 13px; font-weight: 600; letter-spacing: 0.5px;
   }
+  /* Architecture diagram styles */
+  .arch-container { flex: 1; display: flex; flex-direction: column; gap: 6px; justify-content: center; }
+  .arch-layer {
+    border-radius: 6px; padding: 8px 14px; position: relative;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .arch-layer .layer-icon { font-size: 20px; min-width: 28px; text-align: center; }
+  .arch-layer .layer-title { font-size: 13px; font-weight: 700; color: #fff; min-width: 160px; }
+  .arch-layer .layer-desc { font-size: 10px; color: rgba(255,255,255,0.9); line-height: 1.3; }
+  .arch-arrow { text-align: center; font-size: 14px; color: #888; line-height: 1; }
+  .layer-users { background: linear-gradient(135deg, #6C757D, #495057); }
+  .layer-imac { background: linear-gradient(135deg, #107C10, #0B5A0B); }
+  .layer-entra { background: linear-gradient(135deg, #0078D4, #005A9E); }
+  .layer-pam { background: linear-gradient(135deg, #8661C5, #5B3A8C); }
+  .layer-db { background: linear-gradient(135deg, #D83B01, #A52A00); }
+  .arch-connectors {
+    display: flex; justify-content: space-around; font-size: 9px; color: #666;
+    padding: 0 40px;
+  }
+  .arch-connectors span {
+    background: #f0f0f0; padding: 1px 6px; border-radius: 8px; border: 1px solid #ddd;
+  }
   @media print { body { background: #fff; } .slide { margin: 0; box-shadow: none; border-radius: 0; } }
 </style>
 </head>
