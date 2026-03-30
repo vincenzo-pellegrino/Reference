@@ -51,28 +51,6 @@
     background: linear-gradient(135deg, #0078D4, #8661C5);
     color: #fff; font-size: 13px; font-weight: 600; letter-spacing: 0.5px;
   }
-  /* Architecture diagram styles */
-  .arch-container { flex: 1; display: flex; flex-direction: column; gap: 6px; justify-content: center; }
-  .arch-layer {
-    border-radius: 6px; padding: 8px 14px; position: relative;
-    display: flex; align-items: center; gap: 10px;
-  }
-  .arch-layer .layer-icon { font-size: 20px; min-width: 28px; text-align: center; }
-  .arch-layer .layer-title { font-size: 13px; font-weight: 700; color: #fff; min-width: 160px; }
-  .arch-layer .layer-desc { font-size: 10px; color: rgba(255,255,255,0.9); line-height: 1.3; }
-  .arch-arrow { text-align: center; font-size: 14px; color: #888; line-height: 1; }
-  .layer-users { background: linear-gradient(135deg, #6C757D, #495057); }
-  .layer-imac { background: linear-gradient(135deg, #107C10, #0B5A0B); }
-  .layer-entra { background: linear-gradient(135deg, #0078D4, #005A9E); }
-  .layer-pam { background: linear-gradient(135deg, #8661C5, #5B3A8C); }
-  .layer-db { background: linear-gradient(135deg, #D83B01, #A52A00); }
-  .arch-connectors {
-    display: flex; justify-content: space-around; font-size: 9px; color: #666;
-    padding: 0 40px;
-  }
-  .arch-connectors span {
-    background: #f0f0f0; padding: 1px 6px; border-radius: 8px; border: 1px solid #ddd;
-  }
   @media print { body { background: #fff; } .slide { margin: 0; box-shadow: none; border-radius: 0; } }
 </style>
 </head>
@@ -95,7 +73,7 @@
       <strong>Non esiste un'unica tecnologia.</strong> La strategia &egrave; l'<strong>integrazione best-of-breed</strong> di piattaforme specializzate (Entra ID + IMAC + Safeguard + Splunk), come confermato da Gartner e Forrester.
     </blockquote>
   </div>
-  <span class="slide-num">1 / 6</span>
+  <span class="slide-num">1 / 5</span>
   <span class="slide-author">Vincenzo Pellegrino</span>
   <span class="slide-footer">Executive Summary — Marzo 2026</span>
 </div>
@@ -124,7 +102,7 @@
       <div id="chart2" style="width:100%; height:350px;"></div>
     </div>
   </div>
-  <span class="slide-num">2 / 6</span>
+  <span class="slide-num">2 / 5</span>
   <span class="slide-author">Vincenzo Pellegrino</span>
   <span class="slide-footer">Executive Summary — Marzo 2026</span>
 </div>
@@ -157,66 +135,13 @@
       </table>
     </div>
   </div>
-  <span class="slide-num">3 / 6</span>
+  <span class="slide-num">3 / 5</span>
   <span class="slide-author">Vincenzo Pellegrino</span>
   <span class="slide-footer">Executive Summary — Marzo 2026</span>
 </div>
 
-<!-- SLIDE 4: ARCHITETTURA 4 PILASTRI -->
+<!-- SLIDE 4: REQUISITI + DBEAVER -->
 <div class="slide" id="slide4">
-  <h1>Architettura a 4 Pilastri Integrati</h1>
-  <h2>Integrazione Best-of-Breed a layer specializzati</h2>
-  <div class="arch-container">
-    <!-- Layer: Utenti -->
-    <div class="arch-layer layer-users">
-      <span class="layer-icon">👤</span>
-      <span class="layer-title">Utenti & Applicazioni</span>
-      <span class="layer-desc">Personali · App A2A interne · A2A esterne</span>
-    </div>
-    <div class="arch-arrow">▼</div>
-    <!-- Layer: IMAC -->
-    <div class="arch-layer layer-imac">
-      <span class="layer-icon">📋</span>
-      <span class="layer-title">IMAC — Governance</span>
-      <span class="layer-desc">Richieste abilitazione · Workflow approvazione · Catalogo ruoli · Campagne attestazione · Provisioning/Deprovisioning · Integrazione HR</span>
-    </div>
-    <div class="arch-connectors"><span>SCIM / API</span></div>
-    <div class="arch-arrow">▼</div>
-    <!-- Layer: Entra ID -->
-    <div class="arch-layer layer-entra">
-      <span class="layer-icon">🔐</span>
-      <span class="layer-title">Microsoft Entra ID — IdP</span>
-      <span class="layer-desc">Autenticazione OIDC/SAML · MFA · Conditional Access · Token auth · Gruppi/ruoli · Managed Identity · Federation AWS/GCP</span>
-    </div>
-    <div class="arch-connectors"><span>SAML 2.0</span><span>OAuth2 / OIDC</span><span>Managed Identity</span></div>
-    <div class="arch-arrow">▼</div>
-    <!-- Layer: PAM -->
-    <div class="arch-layer layer-pam">
-      <span class="layer-icon">🛡️</span>
-      <span class="layer-title">One Identity Safeguard — PAM</span>
-      <span class="layer-desc">SPP: Vault AES-256 · A2A Credential Provider · Password Rotation · JIT Access &nbsp;|&nbsp; SPS: Database Proxy · Session Recording · Command Control</span>
-    </div>
-    <div class="arch-connectors"><span>Credential Injection / Proxy</span><span>Syslog JSON-CIM</span></div>
-    <div class="arch-arrow">▼</div>
-    <!-- Layer: Database -->
-    <div class="arch-layer layer-db">
-      <span class="layer-icon">🗄️</span>
-      <span class="layer-title">43 Database</span>
-      <span class="layer-desc">SQL Server · Oracle · PostgreSQL · MySQL · MongoDB · SAP HANA · Redis · Cosmos DB · Cassandra · Neo4j · DynamoDB · Redshift · Db2 · InfluxDB …</span>
-    </div>
-    <!-- Splunk side note -->
-    <div style="position:absolute; right:20px; top:50%; transform:translateY(-50%); writing-mode:vertical-lr; text-orientation:mixed; background:linear-gradient(180deg,#D83B01,#A52A00); color:#fff; padding:8px 6px; border-radius:6px; font-size:10px; font-weight:700; letter-spacing:1px;">
-      SPLUNK — SIEM & Audit ↕
-    </div>
-  </div>
-  <span class="slide-num">4 / 6</span>
-  <span class="slide-author">Vincenzo Pellegrino</span>
-  <span class="slide-footer">Riservato</span>
-</div>
-
- 
-<!-- SLIDE 5: REQUISITI + DBEAVER -->
-<div class="slide" id="slide5">
   <h1>17 Requisiti: Copertura per Pilastro &amp; Valutazione DBeaver</h1>
   <div class="row" style="flex:1; min-height:0;">
     <div class="col" style="flex:1.1;">
@@ -242,13 +167,13 @@
       <div id="chart4b" style="width:100%; height:180px;"></div>
     </div>
   </div>
-  <span class="slide-num">5 / 6</span>
+  <span class="slide-num">4 / 5</span>
   <span class="slide-author">Vincenzo Pellegrino</span>
   <span class="slide-footer">Executive Summary — Marzo 2026</span>
 </div>
 
-<!-- SLIDE 6: RACCOMANDAZIONI -->
-<div class="slide" id="slide6">
+<!-- SLIDE 5: RACCOMANDAZIONI -->
+<div class="slide" id="slide5">
   <h1>Raccomandazioni</h1>
   <h2>Strategia confermata: integrazione best-of-breed, non sostituzione monolitica</h2>
   <div class="row" style="flex:1; min-height:0; margin-top:8px;">
@@ -277,7 +202,7 @@
       </div>
     </div>
   </div>
-  <span class="slide-num">6 / 6</span>
+  <span class="slide-num">5 / 5</span>
   <span class="slide-author">Vincenzo Pellegrino</span>
   <span class="slide-footer">Executive Summary — Marzo 2026</span>
 </div>
