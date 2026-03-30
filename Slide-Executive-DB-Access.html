@@ -212,9 +212,9 @@ Plotly.newPlot('chart2', [{
   paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)'
 }, { responsive: true, displayModeBar: false });
 
-// Slide 3: Sunburst Architecture
+// Slide 3: Treemap Architecture (replaces broken sunburst)
 Plotly.newPlot('chart3', [{
-  type: 'sunburst',
+  type: 'treemap',
   labels: ['Architettura','IMAC','Entra ID','Safeguard','Splunk','43 DB',
     'Workflow','Provisioning','Attestazione',
     'SSO/MFA','Token Auth','Federation',
@@ -227,7 +227,7 @@ Plotly.newPlot('chart3', [{
     'Safeguard','Safeguard','Safeguard','Safeguard',
     'Splunk','Splunk','Splunk',
     '43 DB','43 DB'],
-  values: [0,3,3,4,3,2, 1,1,1, 1,1,1, 1,1,1,1, 1,1,1, 1,1],
+  values: [0, 3, 3, 4, 3, 2, 1,1,1, 1,1,1, 1,1,1,1, 1,1,1, 1,1],
   branchvalues: 'total',
   marker: { colors: ['#E8F0FE','#8661C5','#0078D4','#E81123','#FFB900','#107C10',
     '#B39DDB','#B39DDB','#B39DDB',
@@ -235,8 +235,9 @@ Plotly.newPlot('chart3', [{
     '#EF5350','#EF5350','#EF5350','#EF5350',
     '#FFD54F','#FFD54F','#FFD54F',
     '#66BB6A','#66BB6A'] },
-  textinfo: 'label', textfont: { size: 10 },
-  insidetextorientation: 'radial'
+  textinfo: 'label',
+  textfont: { size: 12 },
+  pathbar: { visible: false }
 }], {
   margin: { t: 5, b: 5, l: 5, r: 5 },
   paper_bgcolor: 'rgba(0,0,0,0)'
@@ -273,7 +274,7 @@ Plotly.newPlot('chart4b', [{
   sort: false
 }], {
   showlegend: true,
-  legend: { font:{size:9}, orientation:'h', y:-0.05, x:0.5, xanchor:'center' },
+  legend: { font:{size:9}, orientation:'h', y:-0.05, x:0.5, xanchor: 'center' },
   margin: { t: 5, b: 30, l: 5, r: 5 },
   paper_bgcolor: 'rgba(0,0,0,0)',
   annotations: [{ text:'DBeaver<br>vs 17 Req', showarrow:false, font:{size:10,color:'#555'} }]
