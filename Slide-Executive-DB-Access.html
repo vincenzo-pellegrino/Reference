@@ -103,7 +103,7 @@
   <h2>Ogni pilastro è best-in-class nel proprio dominio — integrazione via standard aperti</h2>
   <div class="row" style="flex:1; min-height:0;">
     <div class="col" style="flex:1.15;">
-      <div id="chart3" class="plotly-chart"></div>
+      <div id="chart3" class="plotly-chart" style="min-height:280px;"></div>
     </div>
     <div class="col" style="flex:0.85; justify-content:flex-start; padding-top:2px;">
       <table>
@@ -227,7 +227,7 @@ Plotly.newPlot('chart3', [{
     'Safeguard','Safeguard','Safeguard','Safeguard',
     'Splunk','Splunk','Splunk',
     '43 DB','43 DB'],
-  values: [0,3,3,4,3,2, 1,1,1, 1,1,1, 1,1,1,1, 1,1,1, 1,1],
+  values: [15,3,3,4,3,2, 1,1,1, 1,1,1, 1,1,1,1, 1,1,1, 1,1],
   branchvalues: 'total',
   marker: { colors: ['#E8F0FE','#8661C5','#0078D4','#E81123','#FFB900','#107C10',
     '#B39DDB','#B39DDB','#B39DDB',
@@ -239,7 +239,8 @@ Plotly.newPlot('chart3', [{
   insidetextorientation: 'radial'
 }], {
   margin: { t: 5, b: 5, l: 5, r: 5 },
-  paper_bgcolor: 'rgba(0,0,0,0)'
+  paper_bgcolor: 'rgba(0,0,0,0)',
+  height: 380
 }, { responsive: true, displayModeBar: false });
 
 // Slide 4a: Stacked Bar
