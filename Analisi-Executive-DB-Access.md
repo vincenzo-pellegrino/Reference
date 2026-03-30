@@ -80,20 +80,19 @@ L'azienda gestisce **43 tecnologie database** distribuite su 10 categorie (RDBMS
 
 ### 2.3 — Distribuzione per Categoria
 
-```
-           43 Database Aziendali — Distribuzione per Categoria
-
-  RDBMS On-prem (10)    ████████████████████████  23%
-  RDBMS Cloud (8)       ███████████████████       19%
-  NoSQL Document (5)    ████████████              12%
-  NoSQL Key-Value (5)   ████████████              12%
-  NoSQL Wide-Column (4) █████████                  9%
-  In-Memory (2)         █████                      5%
-  Embedded (4)          █████████                  9%
-  Data Warehouse (1)    ██                         2%
-  Time-Series (2)       █████                      5%
-  Graph (2)             █████                      5%
-```
+| Categoria | Conteggio | % | Distribuzione |
+|---|:---:|:---:|---|
+| RDBMS On-prem | 10 | 23% | ⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛ |
+| RDBMS Cloud | 8 | 19% | ⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛ |
+| NoSQL Document | 5 | 12% | ⬛⬛⬛⬛⬛⬛ |
+| NoSQL Key-Value | 5 | 12% | ⬛⬛⬛⬛⬛⬛ |
+| NoSQL Wide-Column | 4 | 9% | ⬛⬛⬛⬛⬛ |
+| In-Memory | 2 | 5% | ⬛⬛⬛ |
+| Embedded | 4 | 9% | ⬛⬛⬛⬛⬛ |
+| Data Warehouse | 1 | 2% | ⬛ |
+| Time-Series | 2 | 5% | ⬛⬛⬛ |
+| Graph | 2 | 5% | ⬛⬛⬛ |
+| **Totale** | **43** | **100%** | |
 
 ### 2.4 — Addon: Capacità Vector DB
 
@@ -122,16 +121,13 @@ Alcuni database del parco offrono funzionalità vector search come addon:
 
 ### 3.2 — Compatibilità Entra ID
 
-```
-           Compatibilità Entra ID — 43 Database
-
-  ✅ Nativo CP+DP          ████████  8 (19%)
-  🔶 Indiretto (SAML/OIDC) █████████  9 (21%)
-  🔶 Solo CP Federation    ██████████ 10 (23%)
-  ❌ Nessun Supporto       ████████████████ 16 (37%)
-                           ─────────────────────
-                           0    4    8   12   16   20
-```
+| Livello Supporto | DB | % | Distribuzione |
+|---|:---:|:---:|---|
+| ✅ Nativo CP+DP | 8 | 19% | ⬛⬛⬛⬛⬛⬛⬛⬛ |
+| 🔶 Indiretto (SAML/OIDC) | 9 | 21% | ⬛⬛⬛⬛⬛⬛⬛⬛⬛ |
+| 🔶 Solo CP Federation | 10 | 23% | ⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛ |
+| ❌ Nessun Supporto | 16 | 37% | ⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛ |
+| **Totale** | **43** | **100%** | |
 
 > **Dato chiave:** Per l'**81%** del parco servono compensazioni via **PAM** (credential vaulting + session proxy tramite Safeguard).
 
@@ -325,19 +321,14 @@ La strategia corretta è l'**integrazione a layer** delle quattro piattaforme sp
 
 ### 6.2 — Distribuzione Responsabilità per Pilastro
 
-```
-        Copertura dei 17 Requisiti per Pilastro
-        (Primario + Contributo)
+| Pilastro | Primario | Contributo | Totale | Distribuzione |
+|---|:---:|:---:|:---:|---|
+| Entra ID | 3 | 8 | 11 | ⬛⬛⬛🔲🔲🔲🔲🔲🔲🔲🔲 |
+| IMAC | 3 | 5 | 8 | ⬛⬛⬛🔲🔲🔲🔲🔲 |
+| Safeguard | 7 | 5 | 12 | ⬛⬛⬛⬛⬛⬛⬛🔲🔲🔲🔲🔲 |
+| Splunk | 1 | 11 | 12 | ⬛🔲🔲🔲🔲🔲🔲🔲🔲🔲🔲🔲 |
 
-  Entra ID   ██████████████████████  3 Primario + 8 Contributo = 11
-  IMAC       ████████████████        3 Primario + 5 Contributo = 8
-  Safeguard  ████████████████████████ 7 Primario + 5 Contributo = 12
-  Splunk     ██████████��█████████████ 1 Primario + 11 Contributo = 12
-             ─────────────────────────
-             0    2    4    6    8   10   12   14   16
-
-  ■ Primario    □ Contributo
-```
+⬛ = Primario, 🔲 = Contributo
 
 ---
 
@@ -362,21 +353,12 @@ DBeaver si colloca come **front-end client** per utenze interattive, **sotto** i
 
 ### Mappatura DBeaver vs 17 Requisiti
 
-```
-             DBeaver Team Edition vs 17 Requisiti
-
-        ┌─────────────────────────────────────────┐
-        │                                         │
-        │    ✅ Coperto:      1 /17  ( 6%)        │
-        │    🔶 Parziale:     6 /17  (35%)        │
-        │    ❌ Non coperto: 10 /17  (59%)        │
-        │                                         │
-        │    ██                      6%  Coperto   │
-        │    ████████████           35%  Parziale  │
-        │    ████████████████████   59%  Non cop.  │
-        │                                         │
-        └─────────────────────────────────────────┘
-```
+| Copertura | Requisiti | % | Distribuzione |
+|---|:---:|:---:|---|
+| ✅ Coperto | 1 | 6% | ⬛ |
+| 🔶 Parziale | 6 | 35% | ⬛⬛⬛⬛⬛⬛ |
+| ❌ Non coperto | 10 | 59% | ⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛ |
+| **Totale** | **17** | **100%** | |
 
 > **Verdetto:** DBeaver copre solo **1 requisito su 17** in autonomia. Non è un sostituto dei 4 pilastri.
 
