@@ -216,11 +216,11 @@
       <h3 style="margin-top:0;">Responsabilità Primaria per Area</h3>
       <table>
         <tr><th>Area Funzionale</th><th>Primario</th><th>Requisiti</th></tr>
-        <tr><td>Autenticazione &amp; Token</td><td>Entra ID</td><td>Autenticazione centralizzata, Integrazione Entra ID, Modern auth (token)</td></tr>
-        <tr><td>Governance &amp; Lifecycle</td><td>IMAC</td><td>Provisioning/Deprovisioning, RBAC, Integrazione IMAC, Campagna attestazione</td></tr>
+        <tr><td>Autenticazione &amp; Token</td><td>Entra ID</td><td>Autenticazione centralizzata, Modern auth (token)</td></tr>
+        <tr><td>Governance &amp; Lifecycle</td><td>IMAC</td><td>Provisioning/Deprovisioning, Integrazione IMAC, Campagna attestazione</td></tr>
         <tr><td>Privileged Access</td><td>Safeguard</td><td>Utenze A2A interne (app→DB), Blocco accesso diretto, Inibizione A2A da umani, Utenze native, Encryption password</td></tr>
-        <tr><td>Audit &amp; Compliance</td><td>Splunk</td><td>Auditing completo, Individuazione utenza reale</td></tr>
-        <tr><td>Multi-pilastro</td><td>Cooperazione</td><td>Utenze interattive, Utenze A2A esterne, Blocco non certificati</td></tr>
+        <tr><td>Audit &amp; Compliance</td><td>Splunk</td><td>Auditing completo</td></tr>
+        <tr><td>Multi-pilastro</td><td>Cooperazione</td><td>Integrazione Entra ID, Utenze interattive, Utenze A2A esterne, RBAC, Individuazione utenza reale, Blocco non certificati</td></tr>
       </table>
       <h3>DBeaver Team Edition — Verdetto</h3>
       <table>
@@ -340,14 +340,14 @@ document.addEventListener('DOMContentLoaded', function() {
   // Slide 5a: Stacked Bar — Requirements by Pillar
   Plotly.newPlot('chart4a', [{
     x: ['Entra ID','IMAC','Safeguard','Splunk'],
-    y: [3,3,7,1], name: 'Primario', type: 'bar',
+    y: [2,3,5,1], name: 'Primario', type: 'bar',
     marker: { color: '#0078D4' },
-    text: ['3','3','7','1'], textposition: 'inside', textfont:{color:'#fff',size:11}
+    text: ['2','3','5','1'], textposition: 'inside', textfont:{color:'#fff',size:11}
   },{
     x: ['Entra ID','IMAC','Safeguard','Splunk'],
-    y: [8,5,5,11], name: 'Contributo', type: 'bar',
+    y: [9,5,7,11], name: 'Contributo', type: 'bar',
     marker: { color: '#90CAF9' },
-    text: ['8','5','5','11'], textposition: 'inside', textfont:{color:'#333',size:11}
+    text: ['9','5','7','11'], textposition: 'inside', textfont:{color:'#333',size:11}
   }], {
     barmode: 'stack', showlegend: true,
     legend: { font:{size:9}, orientation:'h', y:1.15, x:0.5, xanchor:'center' },
