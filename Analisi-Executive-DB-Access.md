@@ -323,12 +323,14 @@ La strategia corretta è l'**integrazione a layer** delle quattro piattaforme sp
 
 | Pilastro | Primario | Contributo | Totale | Distribuzione |
 |---|:---:|:---:|:---:|---|
-| Entra ID | 3 | 8 | 11 | ⬛⬛⬛🔲🔲🔲🔲🔲🔲🔲🔲 |
+| Entra ID | 2 | 9 | 11 | ⬛⬛🔲🔲🔲🔲🔲🔲🔲🔲🔲 |
 | IMAC | 3 | 5 | 8 | ⬛⬛⬛🔲🔲🔲🔲🔲 |
-| Safeguard | 7 | 5 | 12 | ⬛⬛⬛⬛⬛⬛⬛🔲🔲🔲🔲🔲 |
+| Safeguard | 5 | 7 | 12 | ⬛⬛⬛⬛⬛🔲🔲🔲🔲🔲🔲🔲 |
 | Splunk | 1 | 11 | 12 | ⬛🔲🔲🔲🔲🔲🔲🔲🔲🔲🔲🔲 |
 
 ⬛ = Primario, 🔲 = Contributo
+
+> **Nota:** 6 requisiti (#2, #3, #4, #7, #10, #12) sono multi-pilastro e non hanno un singolo responsabile primario. Sono conteggiati come "Contributo" per ogni pilastro coinvolto.
 
 ---
 
