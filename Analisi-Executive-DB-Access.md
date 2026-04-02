@@ -387,10 +387,9 @@ DBeaver si colloca come **front-end client** per utenze interattive, **sotto** i
 
 4. **Garantire audit end-to-end** su Splunk tramite correlazione multi-sorgente: Entra sign-in → Safeguard session → DB audit log → IMAC provisioning.
 
-5. **Valutare DBeaver Team Edition** come client unificato per utenze interattive, integrato con SSO Entra ID e operante tramite il proxy Safeguard SPS.
+5. **Non ricercare un'unica tecnologia sostitutiva, ad esempio DBeaver Team Edition**: ogni piattaforma dello stack copre funzionalità critiche che vanno ben oltre l'accesso ai database (autenticazione aziendale, accesso privilegiato infrastrutturale, SIEM trasversale, governance di tutte le applicazioni).
 
-6. **Non ricercare un'unica tecnologia sostitutiva**: ogni piattaforma dello stack copre funzionalità critiche che vanno ben oltre l'accesso ai database (autenticazione aziendale, accesso privilegiato infrastrutturale, SIEM trasversale, governance di tutte le applicazioni).
-
+6. **Avviare la trasformazione digitale dei DB verso le Reference di caso d'uso** passando da 43 DB gestiti a 10 DB Reference, semplificando notevolmente la gestione operativa e abbassando l'indice di obsolescenza complessivo.
 ---
 
 *Fine documento*
