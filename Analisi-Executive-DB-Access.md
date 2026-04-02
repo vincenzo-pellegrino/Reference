@@ -355,12 +355,12 @@ DBeaver si colloca come **front-end client** per utenze interattive, **sotto** i
 
 ### Mappatura DBeaver vs 17 Requisiti
 
-| Copertura | Requisiti | % | Distribuzione |
-|---|:---:|:---:|---|
-| ✅ Coperto | 1 | 6% | ⬛ |
-| 🔶 Parziale | 6 | 35% | ⬛⬛⬛⬛⬛⬛ |
-| ❌ Non coperto | 10 | 59% | ⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛ |
-| **Totale** | **17** | **100%** | |
+| Copertura | Requisiti | % | Distribuzione | Dettaglio Requisiti |
+|---|:---:|:---:|---|---|
+| ✅ Coperto | 1 | 6% | ⬛ | #1 |
+| 🔶 Parziale | 6 | 35% | ⬛⬛⬛⬛⬛⬛ | #2, #3, #6, #7, #9, #10 |
+| ❌ Non coperto | 10 | 59% | ⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛ | #4, #5, #8, #11, #12, #13, #14, #15, #16, #17 |
+| **Totale** | **17** | **100%** | | |
 
 > **Verdetto:** DBeaver copre solo **1 requisito su 17** in autonomia. Non è un sostituto dei 4 pilastri.
 
