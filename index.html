@@ -1,97 +1,20 @@
-function renderHistoryList(versions){
-    var html='';
-    versions.forEach(function(v){
-        var date=v.savedAt?new Date(v.savedAt).toLocaleString('it-IT'):'—';
-        html+='<div class="history-item" id="history-item-'+v.version+'">"
-            +'<div class="history-info"><span class="history-version">v'+v.version+'</span><span class="history-meta">'+date+' — '+(v.savedBy||'—')+'</span></div>'
-            +'<div class="history-actions">
-            +'<button class="btn-restore" onclick="restoreVersion(\''+v.version+'\')">Ripristina</button>'
-            +'<button class="btn-delete-history" onclick="deleteHistoryVersion(\''+v.version+'\')">🗑️ Elimina</button>'
-            +'</div></div>';
-    });
-    document.getElementById('history-list').innerHTML=html;
-}
-
-async function deleteHistoryVersion(version){
-    if(!confirm('Eliminare definitivamente la versione v'+version+' dallo storico?'))return;
-    var item=document.getElementById('history-item-'+version);
-    if(item)item.classList.add('deleting');
-    try{
-        var res=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'deleteHistory',version:version})});
-        var data=await res.json();
-        if(data.success){
-            setTimeout(function(){if(item)item.remove();
-                var remaining=document.querySelectorAll('#history-list .history-item');
-                if(remaining.length===0)document.getElementById('history-list').innerHTML='<p style="color:#9ca3af;text-align:center;padding:20px;">Nessuna versione precedente disponibile.</p>';
-            },350);
-            showToast('🗑️ Versione v'+version+' eliminata');
-        }else{
-            if(item)item.classList.remove('deleting');
-            showError('Errore nell eliminazione: '+(data.error||'sconosciuto'));
-        }
-    }catch(err){if(item)item.classList.remove('deleting');showError('Errore di connessione durante l eliminazione.');}
-}
-
-async function restoreVersion(version){
-    if(!confirm('Ripristinare la versione v'+version+'? Lo stato corrente verrà archiviato nello storico.'))return;
-    try{
-        var res=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'restore',version:version,savedBy:'Dashboard User'})});
-        var data=await res.json();
-        if(data.success){showToast('✅ Ripristinata versione v'+version);closeModal('modal-history');loadFromCloud();}
-        else{showError('Errore nel ripristino: '+(data.error||'sconosciuto'));}
-    }catch(err){showError('Errore di connessione durante il ripristino.');}
-}
-
-function collectCurrentData(){
-    var rows=[];
-    SECTIONS_CONFIG.forEach(function(cfg){
-        var trs=document.querySelectorAll('#'+cfg.id+' tbody tr');
-        trs.forEach(function(tr,i){
-            rows.push({
-                Category:tr.dataset.category.replace(/&amp;/g,'&'),
-                UseCase:tr.dataset.usecase,
-                Products:tr.dataset.products,
-                Status:cfg.status,
-                Priority:cfg.priority,
-                SectionId:cfg.id,
-                SortOrder:i+1
-            });
-        });
-    });
-    return rows;
-}
-
-async function saveToCloud(){
-    var btn=document.getElementById('btn-save');btn.disabled=true;document.getElementById('btn-save-text').textContent='Salvataggio...';
-    try{
-        var rows=collectCurrentData();
-        var res=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'save',rows:rows,savedBy:'Dashboard User'})});
-        var data=await res.json();
-        if(data.success){
-            currentVersion=data.version;changeCount=0;
-            document.getElementById('version-badge').textContent='v'+currentVersion;
-            document.getElementById('footer-text').textContent='Technology References Dashboard — v'+currentVersion;
-            document.getElementById('changes-indicator').classList.remove('visible');
-            btn.classList.add('saved');
-            document.getElementById('btn-save-icon').textContent='✅';
-            document.getElementById('btn-save-text').textContent='Salvato v'+currentVersion;
-            showToast('✅ Salvato v'+currentVersion+' — tutti vedranno questa versione');
-        }else{showError('Errore nel salvataggio: '+(data.error||'sconosciuto'));document.getElementById('btn-save-text').textContent='Salva';}
-    }catch(err){showError('Errore di connessione. Riprova tra qualche secondo.');document.getElementById('btn-save-text').textContent='Salva';}
-    btn.disabled=false;
-}
-
-async function loadFromCloud(){
-    try{
-        var res=await fetch(API_URL+'?action=read');var data=await res.json();
-        if(data.rows&&data.rows.length>0){currentVersion=data.version||'1.0';renderSections(data.rows);}
-        else{renderSections(DEFAULT_DATA);await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'save',rows:DEFAULT_DATA,savedBy:'System Init'})});}
-        document.getElementById('version-badge').textContent='v'+currentVersion;
-        document.getElementById('footer-text').textContent='Technology References Dashboard — v'+currentVersion;
-    }catch(err){showError('Impossibile caricare i dati dal cloud. Caricamento dati locali di default.');renderSections(DEFAULT_DATA);}
-    document.getElementById('loading-overlay').classList.add('hidden');
-}
-loadFromCloud();
-</script>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <h1>Dashboard</h1>
+    </header>
+    <main>
+        <!-- Your dashboard content goes here -->
+    </main>
+    <footer>
+        <p>© 2026 Your Company</p>
+    </footer>
 </body>
 </html>
