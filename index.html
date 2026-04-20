@@ -299,7 +299,7 @@ async function restoreVersion(version){
     try{
         const res=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'restore',version:version,savedBy:'Dashboard User'})});
         const data=await res.json();
-        if(data.success){showToast('✅ Ripristinata versione v'+version);closeModal('modal-history');loadFromCloud();}
+        if(data.success){showToast('✅ Ripristinata versione v'+version);closeModal('modal-history');await loadFromCloud();currentVersion=version;document.getElementById('version-badge').textContent='v'+version;document.getElementById('footer-text').textContent='Technology References Dashboard — v'+version;}
         else{showError('Errore nel ripristino: '+(data.error||'sconosciuto'));}
     }catch(err){showError('Errore di connessione durante il ripristino.');}
 }
