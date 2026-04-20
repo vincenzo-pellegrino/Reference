@@ -266,12 +266,12 @@ function renderHistoryList(versions){
     let html='';
     versions.forEach(v=>{
         const date=v.savedAt?new Date(v.savedAt).toLocaleString('it-IT'):'—';
-        html+='<div class="history-item" id="history-item-'+v.version+'">
-            <div class="history-info"><span class="history-version">v'+v.version+'</span><span class="history-meta">'+date+' — '+(v.savedBy||'—')+'</span></div>
-            <div class="history-actions">
-            <button class="btn-restore" onclick="restoreVersion('+v.version+')">Ripristina</button>
-            <button class="btn-delete-history" onclick="deleteHistoryVersion('+v.version+')">🗑️ Elimina</button>
-            </div></div>';
+        html+=`<div class="history-item" id="history-item-${v.version}">`
+            +`<div class="history-info"><span class="history-version">v${v.version}</span><span class="history-meta">${date} — ${v.savedBy||'—'}</span></div>`
+            +`<div class="history-actions">`
+            +`<button class="btn-restore" onclick="restoreVersion(${v.version})">Ripristina</button>`
+            +`<button class="btn-delete-history" onclick="deleteHistoryVersion(${v.version})">🗑️ Elimina</button>`
+            +`</div></div>`;
     });
     document.getElementById('history-list').innerHTML=html;
 }
