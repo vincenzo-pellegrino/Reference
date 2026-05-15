@@ -98,6 +98,14 @@
         .category-cell { font-weight: 600; color: #1a1a2e; }
         .toast { position: fixed; bottom: 30px; right: 30px; background: #0f1729; color: white; padding: 14px 24px; border-radius: 12px; font-size: 13px; font-weight: 500; box-shadow: 0 8px 30px rgba(0,0,0,0.2); transform: translateY(100px); opacity: 0; transition: all 0.3s ease; z-index: 1000; }
         .toast.show { transform: translateY(0); opacity: 1; }
+        .btn-export { background: linear-gradient(135deg, #06b6d4, #0891b2); box-shadow: 0 4px 12px rgba(6,182,212,0.3); }
+        .btn-export:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(6,182,212,0.4); }
+        .row-actions { display: flex; gap: 4px; justify-content: flex-end; }
+        .btn-edit-row, .btn-delete-row { border: none; padding: 4px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; font-family: 'Inter', sans-serif; font-weight: 500; transition: all 0.15s; line-height: 1.4; }
+        .btn-edit-row { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+        .btn-edit-row:hover { background: #dbeafe; }
+        .btn-delete-row { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+        .btn-delete-row:hover { background: #fee2e2; border-color: #f87171; }
         .error-banner { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; padding: 16px 24px; border-radius: 12px; margin-bottom: 20px; font-size: 13px; display: none; }
         .error-banner.visible { display: block; }
         @media print { body { padding: 20px; background: white; } .section { box-shadow: none; } .drag-handle, .header-hint, .btn, .changes-indicator, .modal-overlay, .loading-overlay { display: none !important; } }
@@ -110,6 +118,7 @@
     <div class="header-right">
         <span class="version-badge" id="version-badge">v1.0</span>
         <div class="header-hint"><span style="font-size:18px;">⠿</span> Drag &amp; drop per spostare e riordinare</div>
+        <button class="btn btn-export" onclick="exportCSV()">📥 Esporta</button>
         <button class="btn btn-add" onclick="openAddModal()">➕ Nuova Reference</button>
         <button class="btn btn-history" onclick="openHistoryModal()">📜 Storico</button>
         <span class="changes-indicator" id="changes-indicator">0</span>
@@ -129,6 +138,14 @@
     <h2>📜 Storico Versioni</h2>
     <div id="history-list"><p style="color:#9ca3af;text-align:center;padding:20px;">Caricamento...</p></div>
     <div class="modal-actions"><button class="btn-cancel" onclick="closeModal('modal-history')">Chiudi</button></div>
+</div></div>
+<div class="modal-overlay" id="modal-edit"><div class="modal">
+    <h2>✏️ Modifica Reference</h2>
+    <label for="edit-category">Category</label><input type="text" id="edit-category" placeholder="es. Artificial Intelligence, Development…" list="edit-category-suggestions"><datalist id="edit-category-suggestions"></datalist>
+    <label for="edit-usecase">Use Case</label><input type="text" id="edit-usecase" placeholder="es. LLM, CI/CD Pipelines…">
+    <label for="edit-products">Products</label><input type="text" id="edit-products" placeholder="es. AWS-Redshift, Databricks-Databricks"><div class="help-text">Separare più prodotti con virgola</div>
+    <div class="modal-row" style="margin-top:16px;"><div><label for="edit-status">Sezione</label><select id="edit-status"><option value="">— Seleziona —</option><option value="inprogress-alta">🔵 In Progress — Alta</option><option value="todo-media">🟡 To Do — Media</option><option value="todo-bassa">🟢 To Do — Bassa</option><option value="done">✅ Done</option></select></div></div>
+    <div class="modal-actions"><button class="btn-cancel" onclick="closeModal('modal-edit')">Annulla</button><button class="btn-confirm" onclick="confirmEdit()">Salva Modifiche</button></div>
 </div></div>
 <div class="kpi-bar">
     <div class="kpi-card in-progress"><div class="kpi-value" style="color:#3b82f6;" id="kpi-inprogress">0</div><div class="kpi-label">In Progress</div></div>
@@ -205,8 +222,8 @@ function renderSections(rows){
         const sectionRows=rows.filter(r=>r.SectionId===cfg.id).sort((a,b)=>(a.SortOrder||0)-(b.SortOrder||0));
         const section=document.createElement('div');section.className='section';section.id=cfg.id;section.dataset.status=cfg.status;section.dataset.priority=cfg.priority;section.dataset.sectionLabel=cfg.label;
         let rowsHTML='';
-        sectionRows.forEach(r=>{rowsHTML+='<tr draggable="true" data-category="'+escAttr(r.Category)+'" data-usecase="'+escAttr(r.UseCase)+'" data-products="'+escAttr(r.Products)+'"><td><span class="drag-handle">⠿</span></td><td class="category-cell">'+esc(r.Category)+'</td><td>'+esc(r.UseCase)+'</td><td>'+makeProductTags(r.Products)+'</td><td>'+badgeMap.status[cfg.status]+'</td><td>'+badgeMap.priority[cfg.priority]+'</td></tr>';});
-        section.innerHTML='<div class="section-header"><h2>'+cfg.label+'</h2><span class="count-badge" id="count-'+cfg.id.replace('section-','')+'">'+sectionRows.length+'</span></div><table><thead><tr><th style="width:3%"></th><th style="width:17%">Category</th><th style="width:24%">Use Case</th><th style="width:29%">Products</th><th style="width:13%">Status</th><th style="width:14%">Priority</th></tr></thead><tbody>'+rowsHTML+'</tbody></table>';
+        sectionRows.forEach(r=>{rowsHTML+='<tr draggable="true" data-category="'+escAttr(r.Category)+'" data-usecase="'+escAttr(r.UseCase)+'" data-products="'+escAttr(r.Products)+'"><td><span class="drag-handle">⠿</span></td><td class="category-cell">'+esc(r.Category)+'</td><td>'+esc(r.UseCase)+'</td><td>'+makeProductTags(r.Products)+'</td><td>'+badgeMap.status[cfg.status]+'</td><td>'+badgeMap.priority[cfg.priority]+'</td><td><div class="row-actions"><button class="btn-edit-row" onclick="openEditModal(this.closest(\'tr\'))">✏️</button><button class="btn-delete-row" onclick="deleteRow(this.closest(\'tr\'))">🗑️</button></div></td></tr>';});
+        section.innerHTML='<div class="section-header"><h2>'+cfg.label+'</h2><span class="count-badge" id="count-'+cfg.id.replace('section-','')+'">'+sectionRows.length+'</span></div><table><thead><tr><th style="width:3%"></th><th style="width:16%">Category</th><th style="width:22%">Use Case</th><th style="width:26%">Products</th><th style="width:12%">Status</th><th style="width:12%">Priority</th><th style="width:9%"></th></tr></thead><tbody>'+rowsHTML+'</tbody></table>';
         container.appendChild(section);initDragDrop(section);
     });
     updateAllCounts();
@@ -221,7 +238,7 @@ function updateAllCounts(){
     document.getElementById('kpi-inprogress').textContent=inP;document.getElementById('kpi-todo').textContent=toDo;document.getElementById('kpi-done').textContent=done;document.getElementById('kpi-total').textContent=inP+toDo+done;
 }
 function updateRowBadges(row,section){const cells=row.querySelectorAll('td');cells[4].innerHTML=badgeMap.status[section.dataset.status];cells[5].innerHTML=badgeMap.priority[section.dataset.priority];}
-let draggedRow=null,draggedFromTbody=null;
+let draggedRow=null,draggedFromTbody=null,editingRow=null;
 function clearIndicators(){document.querySelectorAll('.drop-indicator-above,.drop-indicator-below,.drag-over').forEach(el=>el.classList.remove('drop-indicator-above','drop-indicator-below','drag-over'));}
 function getClosestRow(tbody,y){const rows=[...tbody.querySelectorAll('tr:not(.dragging)')];let closest=null,closestOffset=Number.NEGATIVE_INFINITY,position='below';for(const row of rows){const box=row.getBoundingClientRect();const mid=box.top+box.height/2;const off=y-mid;if(off<0&&off>closestOffset){closestOffset=off;closest=row;position='above';}else if(off>=0&&(off<Math.abs(closestOffset)||closestOffset===Number.NEGATIVE_INFINITY)){closestOffset=off;closest=row;position='below';}}return{row:closest,position};}
 function initDragDrop(section){
@@ -242,6 +259,47 @@ function openAddModal(){
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 document.querySelectorAll('.modal-overlay').forEach(m=>{m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');});});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.modal-overlay.open').forEach(m=>m.classList.remove('open'));});
+function openEditModal(tr){
+    editingRow=tr;
+    const cats=new Set();document.querySelectorAll('tr[data-category]').forEach(r=>cats.add(r.dataset.category.replace(/&amp;/g,'&')));
+    const dl=document.getElementById('edit-category-suggestions');dl.innerHTML='';[...cats].sort().forEach(c=>{const o=document.createElement('option');o.value=c;dl.appendChild(o);});
+    document.getElementById('edit-category').value=tr.dataset.category.replace(/&amp;/g,'&');
+    document.getElementById('edit-usecase').value=tr.dataset.usecase.replace(/&amp;/g,'&');
+    document.getElementById('edit-products').value=tr.dataset.products;
+    const reverseSectionMap=Object.fromEntries(Object.entries(sectionIdMap).map(([k,v])=>[v,k]));
+    document.getElementById('edit-status').value=reverseSectionMap[tr.closest('.section').id]||'';
+    document.querySelectorAll('#modal-edit input, #modal-edit select').forEach(el=>el.classList.remove('error'));
+    document.getElementById('modal-edit').classList.add('open');document.getElementById('edit-category').focus();
+}
+function confirmEdit(){
+    const catInput=document.getElementById('edit-category'),ucInput=document.getElementById('edit-usecase'),prodInput=document.getElementById('edit-products'),statusSelect=document.getElementById('edit-status');
+    const category=catInput.value.trim(),usecase=ucInput.value.trim(),products=prodInput.value.trim(),sectionKey=statusSelect.value;
+    let valid=true;[catInput,ucInput,prodInput,statusSelect].forEach(el=>el.classList.remove('error'));
+    if(!category){catInput.classList.add('error');valid=false;}if(!usecase){ucInput.classList.add('error');valid=false;}if(!products){prodInput.classList.add('error');valid=false;}if(!sectionKey){statusSelect.classList.add('error');valid=false;}if(!valid)return;
+    const sectionId=sectionIdMap[sectionKey],newSection=document.getElementById(sectionId),targetTbody=newSection.querySelector('tbody');
+    const status=newSection.dataset.status,priority=newSection.dataset.priority;
+    editingRow.dataset.category=category;editingRow.dataset.usecase=usecase;editingRow.dataset.products=products;
+    const cells=editingRow.querySelectorAll('td');
+    cells[1].innerHTML=esc(category);cells[2].innerHTML=esc(usecase);cells[3].innerHTML=makeProductTags(products);cells[4].innerHTML=badgeMap.status[status];cells[5].innerHTML=badgeMap.priority[priority];
+    if(editingRow.closest('.section')!==newSection)targetTbody.appendChild(editingRow);
+    editingRow.style.background='#fef3c7';setTimeout(()=>{editingRow.style.transition='background 1s';editingRow.style.background='';},50);
+    updateAllCounts();trackChange();closeModal('modal-edit');showToast('✏️ "'+usecase+'" aggiornato');editingRow.scrollIntoView({behavior:'smooth',block:'center'});editingRow=null;
+}
+function deleteRow(tr){
+    const usecase=tr.dataset.usecase.replace(/&amp;/g,'&');
+    if(!confirm('Eliminare la reference "'+usecase+'"?'))return;
+    tr.style.transition='opacity 0.3s, transform 0.3s';tr.style.opacity='0';tr.style.transform='translateX(30px)';
+    setTimeout(()=>{tr.remove();updateAllCounts();trackChange();showToast('🗑️ "'+usecase+'" eliminato');},320);
+}
+function exportCSV(){
+    const rows=collectCurrentData();
+    const headers=['Category','UseCase','Products','Status','Priority','SectionId','SortOrder'];
+    function csvCell(val){const s=String(val===undefined||val===null?'':val);if(s.includes(',')||s.includes('"')||s.includes('\n')||s.includes('\r'))return'"'+s.replace(/"/g,'""')+'"';return s;}
+    const lines=[headers.join(',')];rows.forEach(r=>lines.push(headers.map(h=>csvCell(r[h])).join(',')));
+    const blob=new Blob(['\uFEFF'+lines.join('\r\n')],{type:'text/csv;charset=utf-8;'});
+    const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='technology-references-export.csv';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+    showToast('📥 Export CSV completato ('+rows.length+' righe)');
+}
 function confirmAdd(){
     const catInput=document.getElementById('inp-category'),ucInput=document.getElementById('inp-usecase'),prodInput=document.getElementById('inp-products'),statusSelect=document.getElementById('sel-status');
     const category=catInput.value.trim(),usecase=ucInput.value.trim(),products=prodInput.value.trim(),sectionKey=statusSelect.value;
@@ -249,7 +307,7 @@ function confirmAdd(){
     if(!category){catInput.classList.add('error');valid=false;}if(!usecase){ucInput.classList.add('error');valid=false;}if(!products){prodInput.classList.add('error');valid=false;}if(!sectionKey){statusSelect.classList.add('error');valid=false;}if(!valid)return;
     const sectionId=sectionIdMap[sectionKey],section=document.getElementById(sectionId),tbody=section.querySelector('tbody'),status=section.dataset.status,priority=section.dataset.priority;
     const tr=document.createElement('tr');tr.draggable=true;tr.dataset.category=category;tr.dataset.usecase=usecase;tr.dataset.products=products;
-    tr.innerHTML='<td><span class="drag-handle">⠿</span></td><td class="category-cell">'+esc(category)+'</td><td>'+esc(usecase)+'</td><td>'+makeProductTags(products)+'</td><td>'+badgeMap.status[status]+'</td><td>'+badgeMap.priority[priority]+'</td>';
+    tr.innerHTML='<td><span class="drag-handle">⠿</span></td><td class="category-cell">'+esc(category)+'</td><td>'+esc(usecase)+'</td><td>'+makeProductTags(products)+'</td><td>'+badgeMap.status[status]+'</td><td>'+badgeMap.priority[priority]+'</td><td><div class="row-actions"><button class="btn-edit-row" onclick="openEditModal(this.closest(\'tr\'))">✏️</button><button class="btn-delete-row" onclick="deleteRow(this.closest(\'tr\'))">🗑️</button></div></td>';
     tr.style.background='#eff6ff';setTimeout(()=>{tr.style.transition='background 1s';tr.style.background='';},50);
     tbody.appendChild(tr);updateAllCounts();trackChange();closeModal('modal-add');showToast('➕ "'+usecase+'" aggiunto');tr.scrollIntoView({behavior:'smooth',block:'center'});
 }
