@@ -12,8 +12,8 @@
 
     Lo script:
     1. Trasforma ogni riga in CSV standard
-    2. Parsa con un parser CSV custom (no ConvertFrom-Csv, no errori header duplicati)
-    3. Mappa i campi per POSIZIONE (non per nome) basandosi sull'header
+    2. Parsa con un parser CSV custom (no ConvertFrom-Csv)
+    3. Mappa i campi per POSIZIONE basandosi sull'header
     4. Genera file .txt pronti per Copilot Studio KB
 
 .USAGE
@@ -29,8 +29,6 @@ if (-not (Test-Path $OutputDir)) {
 }
 
 # === CONFIGURAZIONE ===
-# Mappa: nome colonna CSV -> etichetta output
-# Usiamo solo i campi che ci interessano per la KB
 
 $ServerFields = [ordered]@{
     "name"                                                        = "Nome"
@@ -92,12 +90,8 @@ function Convert-ServiceNowLine {
     <#
     .SYNOPSIS
         Converte UNA riga dal formato ServiceNow a CSV standard.
-        
         Input:  "campo1,""campo2"",""campo3"""
-        Step 1: campo1,""campo2"",""campo3""   (rimuove quote esterne)
-        Step 2: campo1,"campo2","campo3"       (replace "" -> ")
-        
-        Risultato: CSV standard parsabile.
+        Output: campo1,"campo2","campo3"
     #>
     param([string]$Line)
 
@@ -115,7 +109,6 @@ function Split-CsvFields {
     <#
     .SYNOPSIS
         Parsa una riga CSV standard in un array di valori.
-        Gestisce virgolette, virgole interne, quote escaped.
     #>
     param([string]$Line)
 
@@ -163,7 +156,6 @@ function Import-ServiceNowCsv {
     <#
     .SYNOPSIS
         Legge un file CSV ServiceNow e restituisce una lista di hashtable.
-        Usa indici posizionali (non ConvertFrom-Csv) per evitare errori con header duplicati.
     #>
     param(
         [Parameter(Mandatory)][string]$Path,
@@ -185,33 +177,32 @@ function Import-ServiceNowCsv {
         return @()
     }
 
-    # Parsa header (prima riga)
+    # Parsa header
     $headerCsv = Convert-ServiceNowLine $rawLines[0]
     $headers = Split-CsvFields $headerCsv
 
     # Trova le POSIZIONI delle colonne che ci interessano
-    # Mappa: indice posizione -> chiave campo
-    $positionMap = @{}
+    $positionMap = [ordered]@{}
+    $alreadyMapped = [System.Collections.Generic.HashSet[string]]::new()
+
     for ($i = 0; $i -lt $headers.Count; $i++) {
         $colName = $headers[$i].Trim()
-        # Controlla se questo header e' nel nostro field mapping
-        if ($FieldMapping.Contains($colName)) {
-            # Se non l'abbiamo gia' mappato (prendi solo la prima occorrenza)
-            if (-not $positionMap.Values -contains $colName) {
-                $positionMap[$i] = $colName
-            }
+        if ($FieldMapping.Contains($colName) -and -not $alreadyMapped.Contains($colName)) {
+            $positionMap[$i] = $colName
+            $alreadyMapped.Add($colName) | Out-Null
         }
     }
 
     if ($positionMap.Count -eq 0) {
-        Write-Host "  ERRORE: nessuna colonna corrispondente trovata in $Path" -ForegroundColor Red
-        Write-Host "  Header trovati: $($headers -join ', ')" -ForegroundColor Yellow
+        Write-Host "  ERRORE: nessuna colonna mappata in $Path" -ForegroundColor Red
+        Write-Host "    Header CSV: $($headers -join ' | ')" -ForegroundColor Yellow
+        Write-Host "    Campi cercati: $($FieldMapping.Keys -join ' | ')" -ForegroundColor Yellow
         return @()
     }
 
-    Write-Host "  Colonne mappate: $($positionMap.Count)/$($FieldMapping.Count)" -NoNewline
+    Write-Host " [colonne: $($positionMap.Count)/$($FieldMapping.Count)]" -NoNewline
 
-    # Parsa tutte le righe dati
+    # Parsa righe dati
     $results = [System.Collections.Generic.List[hashtable]]::new()
     $errorCount = 0
 
@@ -223,7 +214,6 @@ function Import-ServiceNowCsv {
             $csvLine = Convert-ServiceNowLine $line
             $fields = Split-CsvFields $csvLine
 
-            # Estrai solo i campi che ci interessano, per posizione
             $record = @{}
             foreach ($pos in $positionMap.Keys) {
                 $colName = $positionMap[$pos]
@@ -235,7 +225,6 @@ function Import-ServiceNowCsv {
                 }
             }
 
-            # Aggiungi solo se ha almeno un campo con valore
             if ($record.Count -gt 0) {
                 $results.Add($record)
             }
@@ -244,7 +233,7 @@ function Import-ServiceNowCsv {
         }
     }
 
-    Write-Host " | Righe: $($results.Count), errori: $errorCount"
+    Write-Host " -> $($results.Count) record (errori: $errorCount)"
     return $results
 }
 
@@ -307,7 +296,7 @@ function Process-Category {
 
     foreach ($file in $CsvFiles) {
         if (Test-Path $file) {
-            Write-Host "  Lettura: $file" -NoNewline
+            Write-Host "  $file" -NoNewline
             $rows = Import-ServiceNowCsv -Path $file -FieldMapping $FieldMapping
             if ($rows -and $rows.Count -gt 0) {
                 foreach ($r in $rows) { $allRecords.Add($r) }
@@ -336,7 +325,7 @@ function Process-Category {
         $allRecords = $filtered
         $removed = $before - $allRecords.Count
         if ($removed -gt 0) {
-            Write-Host "  Record senza nome rimossi: $removed"
+            Write-Host "  Senza nome rimossi: $removed"
         }
     }
 
@@ -344,7 +333,6 @@ function Process-Category {
     $seen = [System.Collections.Generic.HashSet[string]]::new()
     $uniqueRecords = [System.Collections.Generic.List[hashtable]]::new()
     foreach ($rec in $allRecords) {
-        # Chiave = tutti i valori dei campi mappati concatenati
         $parts = [System.Collections.Generic.List[string]]::new()
         foreach ($k in $FieldMapping.Keys) {
             if ($rec.ContainsKey($k)) { $parts.Add($rec[$k]) } else { $parts.Add("") }
@@ -355,7 +343,7 @@ function Process-Category {
         }
     }
 
-    Write-Host "  Dopo deduplicazione: $($uniqueRecords.Count) (rimossi $($allRecords.Count - $uniqueRecords.Count) duplicati)"
+    Write-Host "  Dopo dedup: $($uniqueRecords.Count) (rimossi $($allRecords.Count - $uniqueRecords.Count))"
 
     # Converti in blocchi di testo
     $textBlocks = [System.Collections.Generic.List[string]]::new()
@@ -385,7 +373,7 @@ function Process-Category {
             Write-Host "    - $f ($sizeMB MB)"
         }
     } else {
-        Write-Host "  Nessun output generato." -ForegroundColor Yellow
+        Write-Host "  Nessun output." -ForegroundColor Yellow
     }
 }
 
@@ -417,4 +405,4 @@ Write-Host "COMPLETATO!" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Green
 Write-Host "Output in: $(Resolve-Path $OutputDir)" -ForegroundColor Green
 Write-Host ""
-Write-Host "Prossimo passo: carica i file .txt su Copilot Studio -> Knowledge -> File upload"
+Write-Host "Carica i file .txt su Copilot Studio -> Knowledge -> File upload"
