@@ -10,12 +10,6 @@
         campo1,"campo2","campo3"
     = CSV standard.
 
-    Lo script:
-    1. Trasforma ogni riga in CSV standard
-    2. Parsa con un parser CSV custom (no ConvertFrom-Csv)
-    3. Mappa i campi per POSIZIONE basandosi sull'header
-    4. Genera file .txt pronti per Copilot Studio KB
-
 .USAGE
     cd <cartella con i CSV>
     .\convert_for_copilot_studio.ps1
@@ -86,6 +80,18 @@ $BusinessAppFields = [ordered]@{
 
 # === FUNZIONI ===
 
+function Strip-Bom {
+    <#
+    .SYNOPSIS
+        Rimuove il BOM (Byte Order Mark) da una stringa se presente.
+    #>
+    param([string]$Text)
+    if ($Text.Length -gt 0 -and ($Text[0] -eq [char]0xFEFF -or $Text[0] -eq [char]0xFFFE)) {
+        return $Text.Substring(1)
+    }
+    return $Text
+}
+
 function Convert-ServiceNowLine {
     <#
     .SYNOPSIS
@@ -95,7 +101,8 @@ function Convert-ServiceNowLine {
     #>
     param([string]$Line)
 
-    $t = $Line.Trim()
+    # Strip BOM e whitespace
+    $t = (Strip-Bom $Line).Trim()
     if ($t.Length -lt 2) { return $t }
 
     if ($t[0] -eq '"' -and $t[-1] -eq '"') {
@@ -177,9 +184,14 @@ function Import-ServiceNowCsv {
         return @()
     }
 
-    # Parsa header
-    $headerCsv = Convert-ServiceNowLine $rawLines[0]
+    # Parsa header (prima riga) - strip BOM esplicitamente
+    $headerRaw = Strip-Bom $rawLines[0]
+    $headerCsv = Convert-ServiceNowLine $headerRaw
     $headers = Split-CsvFields $headerCsv
+
+    # DEBUG: mostra come vengono parsati gli header
+    Write-Host ""
+    Write-Host "    Header parsati ($($headers.Count) colonne): $($headers[0..([Math]::Min(4, $headers.Count-1))] -join ' | ')..." -ForegroundColor Gray
 
     # Trova le POSIZIONI delle colonne che ci interessano
     $positionMap = [ordered]@{}
@@ -187,20 +199,23 @@ function Import-ServiceNowCsv {
 
     for ($i = 0; $i -lt $headers.Count; $i++) {
         $colName = $headers[$i].Trim()
-        if ($FieldMapping.Contains($colName) -and -not $alreadyMapped.Contains($colName)) {
+        if ($FieldMapping.Contains($colName) -and (-not $alreadyMapped.Contains($colName))) {
             $positionMap[$i] = $colName
             $alreadyMapped.Add($colName) | Out-Null
         }
     }
 
     if ($positionMap.Count -eq 0) {
-        Write-Host "  ERRORE: nessuna colonna mappata in $Path" -ForegroundColor Red
-        Write-Host "    Header CSV: $($headers -join ' | ')" -ForegroundColor Yellow
-        Write-Host "    Campi cercati: $($FieldMapping.Keys -join ' | ')" -ForegroundColor Yellow
+        Write-Host "    ERRORE: nessuna colonna mappata!" -ForegroundColor Red
+        Write-Host "    Primo header raw (hex primi 20 char):" -ForegroundColor Yellow
+        $rawHeader = $rawLines[0]
+        $hexChars = ($rawHeader[0..([Math]::Min(19, $rawHeader.Length-1))] | ForEach-Object { '{0:X4}' -f [int]$_ }) -join ' '
+        Write-Host "    $hexChars" -ForegroundColor Yellow
+        Write-Host "    Campi cercati: $($FieldMapping.Keys -join ', ')" -ForegroundColor Yellow
         return @()
     }
 
-    Write-Host " [colonne: $($positionMap.Count)/$($FieldMapping.Count)]" -NoNewline
+    Write-Host "    Colonne mappate: $($positionMap.Count)/$($FieldMapping.Count)" -NoNewline
 
     # Parsa righe dati
     $results = [System.Collections.Generic.List[hashtable]]::new()
