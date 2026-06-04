@@ -80,52 +80,115 @@ $BusinessAppFields = [ordered]@{
 
 # === FUNZIONI ===
 
-function Fix-CsvLine {
+function Fix-ServiceNowCsvLine {
     <#
     .SYNOPSIS
         Corregge una riga CSV nel formato ServiceNow non standard.
-        Formato input:  "campo1,""campo2"",""campo3"""
-        Formato output: campo1,"campo2","campo3"
+        
+        Formato ServiceNow: "campo1,""campo2"",""campo3"""
+        Dopo fix (CSV standard): campo1,"campo2","campo3"
+        
+        Il formato e':
+        - Riga intera racchiusa tra virgolette esterne
+        - Campi interni (dal secondo in poi) delimitati da ""
+        - Virgolette vuote "" rappresentano campo vuoto
     #>
     param([string]$Line)
 
     $trimmed = $Line.Trim()
 
-    # Se la riga inizia e finisce con " ed ha "" interni, e' formato ServiceNow
-    if ($trimmed.StartsWith('"') -and $trimmed.EndsWith('"')) {
-        # Rimuovi la virgoletta esterna iniziale e finale
-        $inner = $trimmed.Substring(1, $trimmed.Length - 2)
-        # Sostituisci "" con " (unescape delle virgolette interne)
-        $inner = $inner -replace '""', '"'
+    # Se la riga non inizia e finisce con ", restituiscila cosi' com'e'
+    if (-not ($trimmed.StartsWith('"') -and $trimmed.EndsWith('"'))) {
+        return $trimmed
+    }
+
+    # Rimuovi virgoletta esterna iniziale e finale
+    $inner = $trimmed.Substring(1, $trimmed.Length - 2)
+
+    # Ora il contenuto ha il pattern:
+    #   campo1,""campo2"",""campo3"","""",...
+    # Dove ,"" e' l'inizio di un campo quotato e "", e' la fine
+    # 
+    # Strategia: sostituiamo ,"" con ," e "", con ", 
+    # poi gestiamo il caso del campo vuoto """" -> ""
+    # 
+    # Ma attenzione: dobbiamo distinguere tra:
+    #   ,"" come inizio campo -> ,"
+    #   "" come fine campo prima di , -> ",
+    #   """" come campo vuoto -> "",""  (diventa "","")
+    #
+    # Approccio piu' sicuro: split manuale sul pattern
+
+    # Il separatore tra campi nel formato ServiceNow e':
+    #   primo campo: tutto fino alla prima ,""
+    #   campi successivi: tra "","" 
+    #   ultimo campo: dopo l'ultimo "",  fino alla fine (che termina con "")
+
+    # Split sul pattern "","" per ottenere i campi
+    $fields = [System.Collections.Generic.List[string]]::new()
+    
+    # Troviamo il primo campo (non e' quotato internamente)
+    $firstSep = $inner.IndexOf(',""')
+    if ($firstSep -eq -1) {
+        # Un solo campo, restituisci senza virgolette esterne
         return $inner
     }
 
-    return $trimmed
+    $firstField = $inner.Substring(0, $firstSep)
+    $fields.Add($firstField)
+
+    # Il resto dopo il primo ,"" e prima dell'ultimo ""
+    $rest = $inner.Substring($firstSep + 2)  # skip the ,"
+    # $rest ora inizia con " e il contenuto dei campi successivi separati da "",""
+    # e termina con ""
+
+    # Rimuovi la " iniziale e la "" finale
+    if ($rest.StartsWith('"')) {
+        $rest = $rest.Substring(1)
+    }
+    if ($rest.EndsWith('""')) {
+        $rest = $rest.Substring(0, $rest.Length - 2)
+    } elseif ($rest.EndsWith('"')) {
+        $rest = $rest.Substring(0, $rest.Length - 1)
+    }
+
+    # Ora splittiamo su "","" per ottenere i campi rimanenti
+    $remainingFields = $rest -split '""?,""'
+
+    foreach ($f in $remainingFields) {
+        # Rimuovi eventuali virgolette residue ai bordi
+        $clean = $f.TrimStart('"').TrimEnd('"')
+        $fields.Add($clean)
+    }
+
+    # Ricostruisci come CSV standard: ogni campo tra virgolette (per sicurezza)
+    $csvFields = $fields | ForEach-Object {
+        $escaped = $_ -replace '"', '""'
+        "`"$escaped`""
+    }
+
+    return ($csvFields -join ",")
 }
 
 function Import-NonStandardCsv {
     <#
     .SYNOPSIS
         Legge un CSV con formato non standard ServiceNow e restituisce oggetti PSCustomObject.
+        Preprocessa le righe e usa ConvertFrom-Csv.
     #>
     param(
         [Parameter(Mandatory)][string]$Path
     )
 
-    $results = [System.Collections.Generic.List[PSCustomObject]]::new()
-
     # Prova diversi encoding
-    $encodings = @(
-        [System.Text.Encoding]::UTF8,
-        [System.Text.Encoding]::GetEncoding("iso-8859-1"),
-        [System.Text.Encoding]::GetEncoding("windows-1252")
-    )
-
     $lines = $null
-    foreach ($enc in $encodings) {
+    $encodings = @("utf-8", "iso-8859-1", "windows-1252")
+
+    foreach ($encName in $encodings) {
         try {
+            $enc = [System.Text.Encoding]::GetEncoding($encName)
             $lines = [System.IO.File]::ReadAllLines($Path, $enc)
-            if ($lines.Count -gt 0) { break }
+            if ($lines.Count -gt 1) { break }
         } catch {
             continue
         }
@@ -133,58 +196,31 @@ function Import-NonStandardCsv {
 
     if (-not $lines -or $lines.Count -lt 2) {
         Write-Host "  ERRORE: impossibile leggere o file vuoto: $Path" -ForegroundColor Red
-        return $results
+        return @()
     }
 
-    # Correggi header
-    $headerLine = Fix-CsvLine $lines[0]
+    Write-Host "  Preprocessing $($lines.Count) righe..." -NoNewline
 
-    # Parsa l'header con un CSV reader
-    $headerReader = [System.IO.StringReader]::new($headerLine)
-    $headerCsvReader = [Microsoft.VisualBasic.FileIO.TextFieldParser]::new($headerReader)
-    $headerCsvReader.TextFieldType = [Microsoft.VisualBasic.FileIO.FieldType]::Delimited
-    $headerCsvReader.SetDelimiters(",")
-    $headerCsvReader.HasFieldsEnclosedInQuotes = $true
-    $headers = $headerCsvReader.ReadFields()
-    $headerCsvReader.Close()
-    $headerReader.Close()
-
-    # Processa ogni riga dati
-    for ($i = 1; $i -lt $lines.Count; $i++) {
-        $line = $lines[$i]
-        if ([string]::IsNullOrWhiteSpace($line)) { continue }
-
-        $fixedLine = Fix-CsvLine $line
-
-        try {
-            $lineReader = [System.IO.StringReader]::new($fixedLine)
-            $csvParser = [Microsoft.VisualBasic.FileIO.TextFieldParser]::new($lineReader)
-            $csvParser.TextFieldType = [Microsoft.VisualBasic.FileIO.FieldType]::Delimited
-            $csvParser.SetDelimiters(",")
-            $csvParser.HasFieldsEnclosedInQuotes = $true
-
-            $fields = $csvParser.ReadFields()
-            $csvParser.Close()
-            $lineReader.Close()
-
-            if ($fields) {
-                $obj = [ordered]@{}
-                for ($j = 0; $j -lt [Math]::Min($headers.Count, $fields.Count); $j++) {
-                    $obj[$headers[$j]] = $fields[$j]
-                }
-                # Riempi eventuali campi mancanti
-                for ($j = $fields.Count; $j -lt $headers.Count; $j++) {
-                    $obj[$headers[$j]] = ""
-                }
-                $results.Add([PSCustomObject]$obj)
-            }
-        } catch {
-            # Riga malformata, skip
-            continue
+    # Correggi tutte le righe
+    $fixedLines = [System.Collections.Generic.List[string]]::new($lines.Count)
+    foreach ($line in $lines) {
+        if (-not [string]::IsNullOrWhiteSpace($line)) {
+            $fixedLines.Add((Fix-ServiceNowCsvLine $line))
         }
     }
 
-    return $results
+    Write-Host " done. Parsing CSV..." -NoNewline
+
+    # Unisci e parsa con ConvertFrom-Csv
+    $csvText = $fixedLines -join "`n"
+    try {
+        $results = $csvText | ConvertFrom-Csv
+        Write-Host " OK"
+        return $results
+    } catch {
+        Write-Host " ERRORE nel parsing: $_" -ForegroundColor Red
+        return @()
+    }
 }
 
 function Convert-RowToText {
@@ -312,9 +348,6 @@ function Process-Category {
 
 # === ESECUZIONE ===
 
-# Carica assembly per TextFieldParser (parsing CSV robusto)
-Add-Type -AssemblyName Microsoft.VisualBasic
-
 Write-Host "Conversione CSV CMDB per Copilot Studio Knowledge Base" -ForegroundColor Cyan
 Write-Host "========================================================"
 Write-Host "Formato CSV rilevato: ServiceNow (virgolette doppie non standard)"
@@ -340,9 +373,3 @@ Write-Host "COMPLETATO!" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Green
 Write-Host "Cartella output: $OutputDir\"
 Write-Host "Carica tutti i file .txt su Copilot Studio Knowledge Base."
-Write-Host ""
-Write-Host "Formato output per ogni record:" -ForegroundColor Gray
-Write-Host "  Nome: <valore>" -ForegroundColor Gray
-Write-Host "  Classe: <valore>" -ForegroundColor Gray
-Write-Host "  ..." -ForegroundColor Gray
-Write-Host "  ---" -ForegroundColor Gray
