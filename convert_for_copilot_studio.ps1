@@ -5,8 +5,7 @@
 .DESCRIPTION
     I file CSV esportati da ServiceNow hanno un formato non standard:
     ogni riga e' racchiusa tra virgolette esterne e i campi interni usano ""
-    come delimitatori. Questo script preprocessa il CSV, lo converte in
-    blocchi di testo strutturati e li splitta in file .txt da max 2.5 MB.
+    come delimitatori. Alcuni campi contengono newline (record multilinea).
 
     Eseguire nella cartella dove si trovano i file cmdb_ci_*.csv
 
@@ -80,29 +79,69 @@ $BusinessAppFields = [ordered]@{
 
 # === FUNZIONI ===
 
-function Fix-ServiceNowCsvLine {
+function Join-MultiLineRecords {
     <#
     .SYNOPSIS
-        Corregge una riga CSV nel formato ServiceNow non standard.
+        Unisce righe fisiche che appartengono allo stesso record logico.
         
-        Formato ServiceNow: "campo1,""campo2"",""campo3"""
-        Dopo fix:           campo1,"campo2","campo3"
+        Nel formato ServiceNow, ogni record e' racchiuso in virgolette esterne "...".
+        Se un campo contiene un newline, il record si estende su piu' righe fisiche.
         
-        Il trucco e' semplice:
-        1. Rimuovi la virgoletta esterna (prima e ultima)
-        2. Sostituisci "" con "
+        Regola: contare le virgolette. Quando il totale e' PARI, il record e' completo.
+        (aperta " + tutte le "" interne + chiusa " = sempre pari)
+    #>
+    param([string[]]$Lines)
+
+    $records = [System.Collections.Generic.List[string]]::new()
+    $buffer = ""
+
+    foreach ($line in $Lines) {
+        if ([string]::IsNullOrWhiteSpace($line)) { continue }
+
+        if ($buffer -eq "") {
+            $buffer = $line
+        } else {
+            # Unisci con spazio (i newline nei campi diventano spazi nella KB)
+            $buffer = $buffer + " " + $line
+        }
+
+        # Conta le virgolette nel buffer
+        $quoteCount = 0
+        for ($i = 0; $i -lt $buffer.Length; $i++) {
+            if ($buffer[$i] -eq '"') { $quoteCount++ }
+        }
+
+        # Se pari, il record e' completo
+        if ($quoteCount % 2 -eq 0) {
+            $records.Add($buffer)
+            $buffer = ""
+        }
+    }
+
+    # Se c'e' un buffer residuo, aggiungilo comunque
+    if ($buffer -ne "") {
+        $records.Add($buffer)
+    }
+
+    return $records
+}
+
+function Unescape-ServiceNowLine {
+    <#
+    .SYNOPSIS
+        Converte una riga dal formato ServiceNow a CSV standard.
+        Input:  "campo1,""campo2"",""campo3"""
+        Output: campo1,"campo2","campo3"
     #>
     param([string]$Line)
 
     $trimmed = $Line.Trim()
-
     if ($trimmed.Length -lt 2) { return $trimmed }
 
-    # Se la riga inizia e finisce con ", e' formato ServiceNow
+    # Se inizia e finisce con ", rimuovi quote esterne e unescape
     if ($trimmed[0] -eq '"' -and $trimmed[-1] -eq '"') {
-        # Rimuovi virgolette esterne
         $inner = $trimmed.Substring(1, $trimmed.Length - 2)
-        # Sostituisci "" con " (unescape)
+        # Sostituisci "" con " (unescape standard)
         $result = $inner -replace '""', '"'
         return $result
     }
@@ -110,127 +149,154 @@ function Fix-ServiceNowCsvLine {
     return $trimmed
 }
 
-function Deduplicate-Headers {
+function Parse-CsvLine {
     <#
     .SYNOPSIS
-        Se ci sono header duplicati, li rinomina con suffisso _2, _3, ecc.
+        Parsa una riga CSV standard e restituisce un array di campi.
+        Gestisce campi quotati con virgolette e virgole interne.
     #>
-    param([string]$HeaderLine)
+    param([string]$Line)
 
-    # Parsa header come CSV
-    $reader = [System.IO.StringReader]::new($HeaderLine)
-    $fields = @()
-    try {
-        # Usa ConvertFrom-Csv con una riga fittizia per estrarre i nomi
-        $testCsv = $HeaderLine + "`n" + ($HeaderLine -replace '[^,]', 'x')
-        # Approccio semplice: split manuale rispettando le virgolette
-        $inQuote = $false
-        $current = [System.Text.StringBuilder]::new()
-        $fields = [System.Collections.Generic.List[string]]::new()
+    $fields = [System.Collections.Generic.List[string]]::new()
+    $current = [System.Text.StringBuilder]::new()
+    $inQuotes = $false
+    $i = 0
 
-        for ($i = 0; $i -lt $HeaderLine.Length; $i++) {
-            $c = $HeaderLine[$i]
+    while ($i -lt $Line.Length) {
+        $c = $Line[$i]
+
+        if ($inQuotes) {
             if ($c -eq '"') {
-                if ($inQuote -and ($i + 1) -lt $HeaderLine.Length -and $HeaderLine[$i + 1] -eq '"') {
+                if (($i + 1) -lt $Line.Length -and $Line[$i + 1] -eq '"') {
+                    # Escaped quote ""
                     $current.Append('"') | Out-Null
-                    $i++
+                    $i += 2
+                    continue
                 } else {
-                    $inQuote = -not $inQuote
+                    # Fine campo quotato
+                    $inQuotes = $false
+                    $i++
+                    continue
                 }
-            } elseif ($c -eq ',' -and -not $inQuote) {
+            } else {
+                $current.Append($c) | Out-Null
+            }
+        } else {
+            if ($c -eq '"') {
+                $inQuotes = $true
+            } elseif ($c -eq ',') {
                 $fields.Add($current.ToString())
                 $current.Clear() | Out-Null
             } else {
                 $current.Append($c) | Out-Null
             }
         }
-        $fields.Add($current.ToString())
-    } catch {
-        return $HeaderLine
-    } finally {
-        $reader.Close()
+        $i++
     }
 
-    # Rinomina duplicati
-    $seen = @{}
-    $newFields = [System.Collections.Generic.List[string]]::new()
-    foreach ($f in $fields) {
-        $name = $f.Trim()
-        if ($seen.ContainsKey($name)) {
-            $seen[$name]++
-            $newName = "${name}_$($seen[$name])"
-            $newFields.Add("`"$newName`"")
-        } else {
-            $seen[$name] = 1
-            if ($name -match '[,"]') {
-                $escaped = $name -replace '"', '""'
-                $newFields.Add("`"$escaped`"")
-            } else {
-                $newFields.Add($name)
-            }
-        }
-    }
+    # Ultimo campo
+    $fields.Add($current.ToString())
 
-    return ($newFields -join ",")
+    return ,$fields.ToArray()
 }
 
 function Import-NonStandardCsv {
     <#
     .SYNOPSIS
-        Legge un CSV con formato non standard ServiceNow e restituisce oggetti PSCustomObject.
+        Legge un CSV ServiceNow non standard con supporto per:
+        - Virgolette esterne per riga
+        - Campi multilinea (newline dentro i campi)
+        - Header duplicati
     #>
     param(
         [Parameter(Mandatory)][string]$Path
     )
 
     # Prova diversi encoding
-    $lines = $null
+    $rawLines = $null
     $encodings = @("utf-8", "iso-8859-1", "windows-1252")
 
     foreach ($encName in $encodings) {
         try {
             $enc = [System.Text.Encoding]::GetEncoding($encName)
-            $lines = [System.IO.File]::ReadAllLines($Path, $enc)
-            if ($lines.Count -gt 1) { break }
+            $rawLines = [System.IO.File]::ReadAllLines($Path, $enc)
+            if ($rawLines.Count -gt 1) { break }
         } catch {
             continue
         }
     }
 
-    if (-not $lines -or $lines.Count -lt 2) {
+    if (-not $rawLines -or $rawLines.Count -lt 2) {
         Write-Host "  ERRORE: impossibile leggere o file vuoto: $Path" -ForegroundColor Red
         return @()
     }
 
-    Write-Host "  Preprocessing $($lines.Count) righe..." -NoNewline
+    Write-Host "  Righe fisiche: $($rawLines.Count). Unione record multilinea..." -NoNewline
 
-    # Correggi tutte le righe
-    $fixedLines = [System.Collections.Generic.List[string]]::new($lines.Count)
-    
-    # Header: fix + deduplica
-    $fixedHeader = Fix-ServiceNowCsvLine $lines[0]
-    $fixedHeader = Deduplicate-Headers $fixedHeader
-    $fixedLines.Add($fixedHeader)
+    # Unisci record multilinea
+    $logicalRecords = Join-MultiLineRecords $rawLines
 
-    # Righe dati
-    for ($i = 1; $i -lt $lines.Count; $i++) {
-        if (-not [string]::IsNullOrWhiteSpace($lines[$i])) {
-            $fixedLines.Add((Fix-ServiceNowCsvLine $lines[$i]))
+    Write-Host " $($logicalRecords.Count) record logici." -NoNewline
+
+    if ($logicalRecords.Count -lt 2) {
+        Write-Host " ERRORE: nessun dato." -ForegroundColor Red
+        return @()
+    }
+
+    # Parsa header
+    $headerLine = Unescape-ServiceNowLine $logicalRecords[0]
+    $headers = Parse-CsvLine $headerLine
+
+    # Deduplica header
+    $seen = @{}
+    for ($i = 0; $i -lt $headers.Count; $i++) {
+        $h = $headers[$i].Trim()
+        if ($h -eq "") { $h = "campo_$i" }
+        if ($seen.ContainsKey($h)) {
+            $seen[$h]++
+            $headers[$i] = "${h}_$($seen[$h])"
+        } else {
+            $seen[$h] = 1
+            $headers[$i] = $h
         }
     }
 
-    Write-Host " done. Parsing CSV..." -NoNewline
+    Write-Host " Parsing dati..." -NoNewline
 
-    # Unisci e parsa con ConvertFrom-Csv
-    $csvText = $fixedLines -join "`n"
-    try {
-        $results = $csvText | ConvertFrom-Csv
-        Write-Host " OK ($($results.Count) righe)"
-        return $results
-    } catch {
-        Write-Host " ERRORE nel parsing: $_" -ForegroundColor Red
-        return @()
+    # Parsa righe dati
+    $results = [System.Collections.Generic.List[PSCustomObject]]::new()
+    $headerCount = $headers.Count
+    $errorCount = 0
+
+    for ($r = 1; $r -lt $logicalRecords.Count; $r++) {
+        $csvLine = Unescape-ServiceNowLine $logicalRecords[$r]
+        
+        try {
+            $fields = Parse-CsvLine $csvLine
+
+            $obj = [ordered]@{}
+            for ($j = 0; $j -lt $headerCount; $j++) {
+                if ($j -lt $fields.Count) {
+                    $obj[$headers[$j]] = $fields[$j]
+                } else {
+                    $obj[$headers[$j]] = ""
+                }
+            }
+            $results.Add([PSCustomObject]$obj)
+        } catch {
+            $errorCount++
+            if ($errorCount -le 5) {
+                Write-Host "`n    Errore riga $r : $_" -ForegroundColor Yellow
+            }
+        }
     }
+
+    if ($errorCount -gt 5) {
+        Write-Host "`n    ... e altri $($errorCount - 5) errori" -ForegroundColor Yellow
+    }
+
+    Write-Host " OK ($($results.Count) righe, $errorCount errori)"
+    return $results
 }
 
 function Convert-RowToText {
@@ -242,7 +308,9 @@ function Convert-RowToText {
     foreach ($key in $FieldMapping.Keys) {
         $value = $Row.$key
         if ($value -and $value.ToString().Trim() -ne "") {
-            $lines.Add("$($FieldMapping[$key]): $($value.ToString().Trim())")
+            # Rimuovi newline residui e normalizza spazi
+            $cleanValue = $value.ToString().Trim() -replace '\s+', ' '
+            $lines.Add("$($FieldMapping[$key]): $cleanValue")
         }
     }
     return ($lines -join "`n")
@@ -250,8 +318,8 @@ function Convert-RowToText {
 
 function Write-ChunkedFiles {
     param(
-        [Parameter(Mandatory)][string]$Prefix,
-        [System.Collections.Generic.List[string]]$TextBlocks
+        [string]$Prefix,
+        $TextBlocks
     )
 
     if (-not $TextBlocks -or $TextBlocks.Count -eq 0) {
@@ -308,10 +376,7 @@ function Process-Category {
         if (Test-Path $file) {
             $rows = Import-NonStandardCsv -Path $file
             if ($rows -and $rows.Count -gt 0) {
-                Write-Host "  Letto $file : $($rows.Count) righe"
                 foreach ($r in $rows) { $allRows.Add($r) }
-            } else {
-                Write-Host "  Letto $file : 0 righe" -ForegroundColor Yellow
             }
         } else {
             Write-Host "  ATTENZIONE: file non trovato: $file" -ForegroundColor Yellow
@@ -321,23 +386,35 @@ function Process-Category {
     Write-Host "  Totale righe lette: $($allRows.Count)"
 
     if ($allRows.Count -eq 0) {
-        Write-Host "  Nessuna riga da elaborare, skip."
+        Write-Host "  Nessuna riga da elaborare, skip." -ForegroundColor Yellow
         return
     }
 
-    # Deduplicazione
+    # Deduplicazione basata su TUTTI i campi del mapping
     $seen = [System.Collections.Generic.HashSet[string]]::new()
     $uniqueRows = [System.Collections.Generic.List[PSCustomObject]]::new()
     foreach ($row in $allRows) {
-        $keyParts = foreach ($k in $FieldMapping.Keys) { $row.$k }
+        $keyParts = [System.Collections.Generic.List[string]]::new()
+        foreach ($k in $FieldMapping.Keys) {
+            $val = $row.$k
+            if ($val) { $keyParts.Add($val.ToString()) } else { $keyParts.Add("") }
+        }
         $key = $keyParts -join "|"
+        
+        # Non deduplicare righe con chiave completamente vuota
+        $isAllEmpty = ($keyParts | Where-Object { $_.Trim() -ne "" }).Count -eq 0
+        if ($isAllEmpty) {
+            # Skip righe completamente vuote
+            continue
+        }
+        
         if ($seen.Add($key)) {
             $uniqueRows.Add($row)
         }
     }
 
     $duplicatesRemoved = $allRows.Count - $uniqueRows.Count
-    Write-Host "  Righe dopo deduplicazione: $($uniqueRows.Count) (rimossi $duplicatesRemoved duplicati)"
+    Write-Host "  Righe dopo deduplicazione: $($uniqueRows.Count) (rimossi $duplicatesRemoved duplicati/vuoti)"
 
     # Filtra righe senza nome (opzionale)
     $workingRows = $uniqueRows
@@ -355,6 +432,8 @@ function Process-Category {
         $workingRows = $filteredRows
     }
 
+    Write-Host "  Righe da convertire: $($workingRows.Count)"
+
     # Converti in testo
     $textBlocks = [System.Collections.Generic.List[string]]::new()
     foreach ($row in $workingRows) {
@@ -368,10 +447,12 @@ function Process-Category {
 
     # Scrivi file
     $files = Write-ChunkedFiles -TextBlocks $textBlocks -Prefix "kb_$CategoryName"
-    Write-Host "  File generati: $($files.Count)"
-    foreach ($f in $files) {
-        $sizeMB = [math]::Round((Get-Item $f).Length / 1MB, 2)
-        Write-Host "    - $f ($sizeMB MB)"
+    if ($files -and $files.Count -gt 0) {
+        Write-Host "  File generati: $($files.Count)"
+        foreach ($f in $files) {
+            $sizeMB = [math]::Round((Get-Item $f).Length / 1MB, 2)
+            Write-Host "    - $f ($sizeMB MB)"
+        }
     }
 }
 
@@ -379,7 +460,7 @@ function Process-Category {
 
 Write-Host "Conversione CSV CMDB per Copilot Studio Knowledge Base" -ForegroundColor Cyan
 Write-Host "========================================================"
-Write-Host "Formato CSV rilevato: ServiceNow (virgolette doppie non standard)"
+Write-Host "Formato CSV: ServiceNow (virgolette doppie, campi multilinea)"
 Write-Host ""
 
 # Server
@@ -393,7 +474,7 @@ $applFiles = @(
 )
 Process-Category -CategoryName "appl" -CsvFiles $applFiles -FieldMapping $ApplFields -FilterEmptyName $true
 
-# Business App (non filtra per nome perche' molti record hanno nome vuoto ma dati utili)
+# Business App
 $businessFiles = @("cmdb_ci_business_app.csv")
 Process-Category -CategoryName "business_app" -CsvFiles $businessFiles -FieldMapping $BusinessAppFields -FilterEmptyName $false
 
