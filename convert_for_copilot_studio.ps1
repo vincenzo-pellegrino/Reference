@@ -3,11 +3,8 @@
     Converte i CSV CMDB (formato ServiceNow) in testo per Copilot Studio.
 
 .DESCRIPTION
-    Formato dei file:
-    - Header: CSV standard con campi quotati ("name","sys_class_name",...)
-    - Righe dati: formato ServiceNow wrappato ("val1,""val2"",""val3""")
-    
-    Lo script detecta automaticamente il formato di ogni riga.
+    L'header e' CSV standard: "name","sys_class_name","category",...
+    Le righe dati sono wrappate: "val1,""val2"",""val3"""
 
 .USAGE
     cd <cartella con i CSV>
@@ -15,7 +12,7 @@
 #>
 
 $OutputDir = "output_kb"
-$MaxFileSizeBytes = 2500000  # 2.5 MB per file
+$MaxFileSizeBytes = 2500000
 
 if (-not (Test-Path $OutputDir)) {
     New-Item -ItemType Directory -Path $OutputDir | Out-Null
@@ -80,11 +77,6 @@ $BusinessAppFields = [ordered]@{
 # === FUNZIONI ===
 
 function Split-CsvFields {
-    <#
-    .SYNOPSIS
-        Parsa una riga CSV standard in un array di valori.
-        Gestisce campi quotati, virgole interne, quote escaped ("").
-    #>
     param([string]$Line)
 
     $fields = [System.Collections.Generic.List[string]]::new()
@@ -95,16 +87,13 @@ function Split-CsvFields {
 
     while ($i -lt $len) {
         $c = $Line[$i]
-
         if ($inQuotes) {
             if ($c -eq '"') {
                 if (($i + 1) -lt $len -and $Line[$i + 1] -eq '"') {
-                    # Escaped quote ""
                     $sb.Append('"') | Out-Null
                     $i += 2
                     continue
                 } else {
-                    # Fine campo quotato
                     $inQuotes = $false
                     $i++
                     continue
@@ -125,57 +114,32 @@ function Split-CsvFields {
         $i++
     }
     $fields.Add($sb.ToString())
-
     return ,$fields.ToArray()
 }
 
 function Parse-SmartLine {
-    <#
-    .SYNOPSIS
-        Parsa una riga detectando automaticamente il formato:
-        
-        Formato A (CSV standard): "name","sys_class_name","category"
-          -> Dopo il primo " si trova il contenuto del primo campo, poi "," separa i campi
-          
-        Formato B (ServiceNow wrapped): "val1,""val2"",""val3"""
-          -> Tutta la riga e' wrappata in virgolette esterne, i separatori interni sono ,""
-          
-        Come distinguerli:
-          - Se dopo la prima " troviamo "," (quote-comma-quote) PRIMA di trovare ,"" (comma-quote-quote)
-            -> e' formato A (CSV standard)
-          - Altrimenti -> formato B (ServiceNow)
-          
-        Approccio pratico: prova come CSV standard, se otteniamo il numero atteso di campi, ok.
-        Altrimenti prova ServiceNow unwrap.
-    #>
     param(
         [string]$Line,
         [int]$ExpectedFields
     )
 
     $trimmed = $Line.Trim()
-    # Rimuovi BOM se presente
     if ($trimmed.Length -gt 0 -and [int]$trimmed[0] -eq 0xFEFF) {
         $trimmed = $trimmed.Substring(1)
     }
+    if ($trimmed.Length -lt 2) { return ,@($trimmed) }
 
-    if ($trimmed.Length -lt 2) { return ,$trimmed }
-
-    # Tentativo 1: parsa come CSV standard
+    # Tentativo 1: CSV standard
     $fields = Split-CsvFields $trimmed
     if ($fields.Count -ge $ExpectedFields) {
         return ,$fields
     }
 
-    # Tentativo 2: se la riga inizia e finisce con ", prova ServiceNow unwrap
+    # Tentativo 2: ServiceNow wrap (rimuovi quote esterne, unescape "")
     if ($trimmed[0] -eq '"' -and $trimmed[-1] -eq '"') {
         $inner = $trimmed.Substring(1, $trimmed.Length - 2)
         $unescaped = $inner -replace '""', '"'
         $fields2 = Split-CsvFields $unescaped
-        if ($fields2.Count -ge $ExpectedFields) {
-            return ,$fields2
-        }
-        # Se neanche cosi' funziona, restituisci comunque il meglio che abbiamo
         if ($fields2.Count -gt $fields.Count) {
             return ,$fields2
         }
@@ -185,16 +149,11 @@ function Parse-SmartLine {
 }
 
 function Import-SmartCsv {
-    <#
-    .SYNOPSIS
-        Legge un file CSV con auto-detect del formato (standard o ServiceNow).
-    #>
     param(
         [Parameter(Mandatory)][string]$Path,
         [Parameter(Mandatory)][System.Collections.Specialized.OrderedDictionary]$FieldMapping
     )
 
-    # Leggi file
     $rawLines = $null
     foreach ($encName in @("utf-8", "iso-8859-1", "windows-1252")) {
         try {
@@ -209,33 +168,33 @@ function Import-SmartCsv {
         return @()
     }
 
-    # Parsa header - prova con tanti campi quanti ne cerchiamo
+    # Parsa header
     $expectedCount = $FieldMapping.Count
     $headerFields = Parse-SmartLine -Line $rawLines[0] -ExpectedFields $expectedCount
 
-    Write-Host " [$($headerFields.Count) colonne]" -NoNewline
+    Write-Host " [$($headerFields.Count) col]" -NoNewline
 
-    # Trova posizioni dei campi che ci interessano
-    $positionMap = [ordered]@{}
+    # Trova posizioni - usa array di coppie (non [ordered]@{} che fallisce con int keys)
+    $positions = @()  # array di @{Pos=int; Col=string}
     $mapped = @{}
 
     for ($i = 0; $i -lt $headerFields.Count; $i++) {
         $colName = $headerFields[$i].Trim()
         if ($FieldMapping.Contains($colName) -and -not $mapped.ContainsKey($colName)) {
-            $positionMap[$i] = $colName
+            $positions += @{ Pos = $i; Col = $colName }
             $mapped[$colName] = $true
         }
     }
 
-    if ($positionMap.Count -eq 0) {
+    if ($positions.Count -eq 0) {
         Write-Host " ERRORE MAPPING!" -ForegroundColor Red
-        Write-Host "      Primi 5 header: $($headerFields[0..([Math]::Min(4,$headerFields.Count-1))] -join ' | ')" -ForegroundColor Yellow
+        Write-Host "      Header: $($headerFields[0..([Math]::Min(4,$headerFields.Count-1))] -join ' | ')" -ForegroundColor Yellow
         return @()
     }
 
-    Write-Host " [mappati: $($positionMap.Count)]" -NoNewline
+    Write-Host " [map: $($positions.Count)]" -NoNewline
 
-    # Parsa righe dati
+    # Parsa righe
     $results = [System.Collections.Generic.List[hashtable]]::new()
     $errorCount = 0
 
@@ -247,11 +206,12 @@ function Import-SmartCsv {
             $fields = Parse-SmartLine -Line $line -ExpectedFields $headerFields.Count
 
             $record = @{}
-            foreach ($pos in $positionMap.Keys) {
+            foreach ($p in $positions) {
+                $pos = $p.Pos
+                $colName = $p.Col
                 if ($pos -lt $fields.Count) {
                     $val = $fields[$pos].Trim()
                     if ($val -ne "") {
-                        $colName = $positionMap[$pos]
                         $record[$colName] = $val
                     }
                 }
@@ -267,7 +227,7 @@ function Import-SmartCsv {
 
     Write-Host " -> $($results.Count) record"
     if ($errorCount -gt 0) {
-        Write-Host "      ($errorCount errori di parsing)" -ForegroundColor Yellow
+        Write-Host "      ($errorCount errori)" -ForegroundColor Yellow
     }
     return $results
 }
@@ -278,9 +238,7 @@ function Write-ChunkedFiles {
         $TextBlocks
     )
 
-    if (-not $TextBlocks -or $TextBlocks.Count -eq 0) {
-        return @()
-    }
+    if (-not $TextBlocks -or $TextBlocks.Count -eq 0) { return @() }
 
     $fileIndex = 1
     $sb = [System.Text.StringBuilder]::new()
@@ -348,7 +306,6 @@ function Process-Category {
         return
     }
 
-    # Filtra record senza nome
     if ($RequireName) {
         $before = $allRecords.Count
         $filtered = [System.Collections.Generic.List[hashtable]]::new()
@@ -359,12 +316,10 @@ function Process-Category {
         }
         $allRecords = $filtered
         $removed = $before - $allRecords.Count
-        if ($removed -gt 0) {
-            Write-Host "  Senza nome rimossi: $removed"
-        }
+        if ($removed -gt 0) { Write-Host "  Senza nome rimossi: $removed" }
     }
 
-    # Deduplicazione
+    # Dedup
     $seen = [System.Collections.Generic.HashSet[string]]::new()
     $uniqueRecords = [System.Collections.Generic.List[hashtable]]::new()
     foreach ($rec in $allRecords) {
@@ -373,14 +328,11 @@ function Process-Category {
             if ($rec.ContainsKey($k)) { $parts.Add($rec[$k]) } else { $parts.Add("") }
         }
         $key = $parts -join "|"
-        if ($seen.Add($key)) {
-            $uniqueRecords.Add($rec)
-        }
+        if ($seen.Add($key)) { $uniqueRecords.Add($rec) }
     }
+    Write-Host "  Unici: $($uniqueRecords.Count) (dup: $($allRecords.Count - $uniqueRecords.Count))"
 
-    Write-Host "  Unici: $($uniqueRecords.Count) (duplicati rimossi: $($allRecords.Count - $uniqueRecords.Count))"
-
-    # Converti in blocchi di testo
+    # Testo
     $textBlocks = [System.Collections.Generic.List[string]]::new()
     foreach ($rec in $uniqueRecords) {
         $lines = [System.Collections.Generic.List[string]]::new()
@@ -392,12 +344,10 @@ function Process-Category {
                 }
             }
         }
-        if ($lines.Count -gt 0) {
-            $textBlocks.Add(($lines -join "`n"))
-        }
+        if ($lines.Count -gt 0) { $textBlocks.Add(($lines -join "`n")) }
     }
 
-    Write-Host "  Blocchi testo: $($textBlocks.Count)"
+    Write-Host "  Blocchi: $($textBlocks.Count)"
 
     if ($textBlocks.Count -gt 0) {
         $files = Write-ChunkedFiles -TextBlocks $textBlocks -Prefix "kb_$CategoryName"
@@ -418,18 +368,15 @@ Write-Host "=== CSV CMDB -> Copilot Studio Knowledge Base ===" -ForegroundColor 
 Write-Host "Output: .\$OutputDir\"
 Write-Host ""
 
-# Server
 $serverFiles = @("cmdb_ci_server_1.csv", "cmdb_ci_server_2.csv")
 Process-Category -CategoryName "server" -CsvFiles $serverFiles -FieldMapping $ServerFields -RequireName $true
 
-# Applicazioni
 $applFiles = @(
     "cmdb_ci_appl_1.csv", "cmdb_ci_appl_2.csv", "cmdb_ci_appl_3.csv", "cmdb_ci_appl_4.csv",
     "cmdb_ci_appl_5.csv", "cmdb_ci_appl_6.csv", "cmdb_ci_appl_7.csv", "cmdb_ci_appl_8.csv"
 )
 Process-Category -CategoryName "appl" -CsvFiles $applFiles -FieldMapping $ApplFields -RequireName $true
 
-# Business App
 $businessFiles = @("cmdb_ci_business_app.csv")
 Process-Category -CategoryName "business_app" -CsvFiles $businessFiles -FieldMapping $BusinessAppFields -RequireName $false
 
@@ -438,5 +385,3 @@ Write-Host "============================================================" -Foreg
 Write-Host "COMPLETATO!" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Green
 Write-Host "Output in: $(Resolve-Path $OutputDir)" -ForegroundColor Green
-Write-Host ""
-Write-Host "Carica i file .txt su Copilot Studio -> Knowledge -> File upload"
