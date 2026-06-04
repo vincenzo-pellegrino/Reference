@@ -3,12 +3,11 @@
     Converte i CSV CMDB (formato ServiceNow) in testo per Copilot Studio.
 
 .DESCRIPTION
-    Formato ServiceNow di ogni riga:
-        "campo1,""campo2"",""campo3"""
+    Formato dei file:
+    - Header: CSV standard con campi quotati ("name","sys_class_name",...)
+    - Righe dati: formato ServiceNow wrappato ("val1,""val2"",""val3""")
     
-    Dopo strip virgolette esterne e replace "" -> ":
-        campo1,"campo2","campo3"
-    = CSV standard.
+    Lo script detecta automaticamente il formato di ogni riga.
 
 .USAGE
     cd <cartella con i CSV>
@@ -80,42 +79,11 @@ $BusinessAppFields = [ordered]@{
 
 # === FUNZIONI ===
 
-function Strip-Bom {
-    <#
-    .SYNOPSIS
-        Rimuove il BOM (Byte Order Mark) da una stringa se presente.
-    #>
-    param([string]$Text)
-    if ($Text.Length -gt 0 -and ($Text[0] -eq [char]0xFEFF -or $Text[0] -eq [char]0xFFFE)) {
-        return $Text.Substring(1)
-    }
-    return $Text
-}
-
-function Convert-ServiceNowLine {
-    <#
-    .SYNOPSIS
-        Converte UNA riga dal formato ServiceNow a CSV standard.
-        Input:  "campo1,""campo2"",""campo3"""
-        Output: campo1,"campo2","campo3"
-    #>
-    param([string]$Line)
-
-    # Strip BOM e whitespace
-    $t = (Strip-Bom $Line).Trim()
-    if ($t.Length -lt 2) { return $t }
-
-    if ($t[0] -eq '"' -and $t[-1] -eq '"') {
-        $inner = $t.Substring(1, $t.Length - 2)
-        return ($inner -replace '""', '"')
-    }
-    return $t
-}
-
 function Split-CsvFields {
     <#
     .SYNOPSIS
         Parsa una riga CSV standard in un array di valori.
+        Gestisce campi quotati, virgole interne, quote escaped ("").
     #>
     param([string]$Line)
 
@@ -131,10 +99,12 @@ function Split-CsvFields {
         if ($inQuotes) {
             if ($c -eq '"') {
                 if (($i + 1) -lt $len -and $Line[$i + 1] -eq '"') {
+                    # Escaped quote ""
                     $sb.Append('"') | Out-Null
                     $i += 2
                     continue
                 } else {
+                    # Fine campo quotato
                     $inQuotes = $false
                     $i++
                     continue
@@ -159,10 +129,65 @@ function Split-CsvFields {
     return ,$fields.ToArray()
 }
 
-function Import-ServiceNowCsv {
+function Parse-SmartLine {
     <#
     .SYNOPSIS
-        Legge un file CSV ServiceNow e restituisce una lista di hashtable.
+        Parsa una riga detectando automaticamente il formato:
+        
+        Formato A (CSV standard): "name","sys_class_name","category"
+          -> Dopo il primo " si trova il contenuto del primo campo, poi "," separa i campi
+          
+        Formato B (ServiceNow wrapped): "val1,""val2"",""val3"""
+          -> Tutta la riga e' wrappata in virgolette esterne, i separatori interni sono ,""
+          
+        Come distinguerli:
+          - Se dopo la prima " troviamo "," (quote-comma-quote) PRIMA di trovare ,"" (comma-quote-quote)
+            -> e' formato A (CSV standard)
+          - Altrimenti -> formato B (ServiceNow)
+          
+        Approccio pratico: prova come CSV standard, se otteniamo il numero atteso di campi, ok.
+        Altrimenti prova ServiceNow unwrap.
+    #>
+    param(
+        [string]$Line,
+        [int]$ExpectedFields
+    )
+
+    $trimmed = $Line.Trim()
+    # Rimuovi BOM se presente
+    if ($trimmed.Length -gt 0 -and [int]$trimmed[0] -eq 0xFEFF) {
+        $trimmed = $trimmed.Substring(1)
+    }
+
+    if ($trimmed.Length -lt 2) { return ,$trimmed }
+
+    # Tentativo 1: parsa come CSV standard
+    $fields = Split-CsvFields $trimmed
+    if ($fields.Count -ge $ExpectedFields) {
+        return ,$fields
+    }
+
+    # Tentativo 2: se la riga inizia e finisce con ", prova ServiceNow unwrap
+    if ($trimmed[0] -eq '"' -and $trimmed[-1] -eq '"') {
+        $inner = $trimmed.Substring(1, $trimmed.Length - 2)
+        $unescaped = $inner -replace '""', '"'
+        $fields2 = Split-CsvFields $unescaped
+        if ($fields2.Count -ge $ExpectedFields) {
+            return ,$fields2
+        }
+        # Se neanche cosi' funziona, restituisci comunque il meglio che abbiamo
+        if ($fields2.Count -gt $fields.Count) {
+            return ,$fields2
+        }
+    }
+
+    return ,$fields
+}
+
+function Import-SmartCsv {
+    <#
+    .SYNOPSIS
+        Legge un file CSV con auto-detect del formato (standard o ServiceNow).
     #>
     param(
         [Parameter(Mandatory)][string]$Path,
@@ -180,42 +205,35 @@ function Import-ServiceNowCsv {
     }
 
     if (-not $rawLines -or $rawLines.Count -lt 2) {
-        Write-Host "  ERRORE: impossibile leggere $Path" -ForegroundColor Red
+        Write-Host " ERRORE: file vuoto" -ForegroundColor Red
         return @()
     }
 
-    # Parsa header (prima riga) - strip BOM esplicitamente
-    $headerRaw = Strip-Bom $rawLines[0]
-    $headerCsv = Convert-ServiceNowLine $headerRaw
-    $headers = Split-CsvFields $headerCsv
+    # Parsa header - prova con tanti campi quanti ne cerchiamo
+    $expectedCount = $FieldMapping.Count
+    $headerFields = Parse-SmartLine -Line $rawLines[0] -ExpectedFields $expectedCount
 
-    # DEBUG: mostra come vengono parsati gli header
-    Write-Host ""
-    Write-Host "    Header parsati ($($headers.Count) colonne): $($headers[0..([Math]::Min(4, $headers.Count-1))] -join ' | ')..." -ForegroundColor Gray
+    Write-Host " [$($headerFields.Count) colonne]" -NoNewline
 
-    # Trova le POSIZIONI delle colonne che ci interessano
+    # Trova posizioni dei campi che ci interessano
     $positionMap = [ordered]@{}
-    $alreadyMapped = [System.Collections.Generic.HashSet[string]]::new()
+    $mapped = @{}
 
-    for ($i = 0; $i -lt $headers.Count; $i++) {
-        $colName = $headers[$i].Trim()
-        if ($FieldMapping.Contains($colName) -and (-not $alreadyMapped.Contains($colName))) {
+    for ($i = 0; $i -lt $headerFields.Count; $i++) {
+        $colName = $headerFields[$i].Trim()
+        if ($FieldMapping.Contains($colName) -and -not $mapped.ContainsKey($colName)) {
             $positionMap[$i] = $colName
-            $alreadyMapped.Add($colName) | Out-Null
+            $mapped[$colName] = $true
         }
     }
 
     if ($positionMap.Count -eq 0) {
-        Write-Host "    ERRORE: nessuna colonna mappata!" -ForegroundColor Red
-        Write-Host "    Primo header raw (hex primi 20 char):" -ForegroundColor Yellow
-        $rawHeader = $rawLines[0]
-        $hexChars = ($rawHeader[0..([Math]::Min(19, $rawHeader.Length-1))] | ForEach-Object { '{0:X4}' -f [int]$_ }) -join ' '
-        Write-Host "    $hexChars" -ForegroundColor Yellow
-        Write-Host "    Campi cercati: $($FieldMapping.Keys -join ', ')" -ForegroundColor Yellow
+        Write-Host " ERRORE MAPPING!" -ForegroundColor Red
+        Write-Host "      Primi 5 header: $($headerFields[0..([Math]::Min(4,$headerFields.Count-1))] -join ' | ')" -ForegroundColor Yellow
         return @()
     }
 
-    Write-Host "    Colonne mappate: $($positionMap.Count)/$($FieldMapping.Count)" -NoNewline
+    Write-Host " [mappati: $($positionMap.Count)]" -NoNewline
 
     # Parsa righe dati
     $results = [System.Collections.Generic.List[hashtable]]::new()
@@ -226,15 +244,14 @@ function Import-ServiceNowCsv {
         if ([string]::IsNullOrWhiteSpace($line)) { continue }
 
         try {
-            $csvLine = Convert-ServiceNowLine $line
-            $fields = Split-CsvFields $csvLine
+            $fields = Parse-SmartLine -Line $line -ExpectedFields $headerFields.Count
 
             $record = @{}
             foreach ($pos in $positionMap.Keys) {
-                $colName = $positionMap[$pos]
                 if ($pos -lt $fields.Count) {
                     $val = $fields[$pos].Trim()
                     if ($val -ne "") {
+                        $colName = $positionMap[$pos]
                         $record[$colName] = $val
                     }
                 }
@@ -248,14 +265,17 @@ function Import-ServiceNowCsv {
         }
     }
 
-    Write-Host " -> $($results.Count) record (errori: $errorCount)"
+    Write-Host " -> $($results.Count) record"
+    if ($errorCount -gt 0) {
+        Write-Host "      ($errorCount errori di parsing)" -ForegroundColor Yellow
+    }
     return $results
 }
 
 function Write-ChunkedFiles {
     param(
         [string]$Prefix,
-        [System.Collections.Generic.List[string]]$TextBlocks
+        $TextBlocks
     )
 
     if (-not $TextBlocks -or $TextBlocks.Count -eq 0) {
@@ -312,7 +332,7 @@ function Process-Category {
     foreach ($file in $CsvFiles) {
         if (Test-Path $file) {
             Write-Host "  $file" -NoNewline
-            $rows = Import-ServiceNowCsv -Path $file -FieldMapping $FieldMapping
+            $rows = Import-SmartCsv -Path $file -FieldMapping $FieldMapping
             if ($rows -and $rows.Count -gt 0) {
                 foreach ($r in $rows) { $allRecords.Add($r) }
             }
@@ -321,14 +341,14 @@ function Process-Category {
         }
     }
 
-    Write-Host "  Totale record: $($allRecords.Count)"
+    Write-Host "`n  Totale record: $($allRecords.Count)"
 
     if ($allRecords.Count -eq 0) {
-        Write-Host "  Nessun dato, skip." -ForegroundColor Yellow
+        Write-Host "  Nessun dato." -ForegroundColor Yellow
         return
     }
 
-    # Filtra: richiedi nome se specificato
+    # Filtra record senza nome
     if ($RequireName) {
         $before = $allRecords.Count
         $filtered = [System.Collections.Generic.List[hashtable]]::new()
@@ -358,7 +378,7 @@ function Process-Category {
         }
     }
 
-    Write-Host "  Dopo dedup: $($uniqueRecords.Count) (rimossi $($allRecords.Count - $uniqueRecords.Count))"
+    Write-Host "  Unici: $($uniqueRecords.Count) (duplicati rimossi: $($allRecords.Count - $uniqueRecords.Count))"
 
     # Converti in blocchi di testo
     $textBlocks = [System.Collections.Generic.List[string]]::new()
@@ -379,13 +399,12 @@ function Process-Category {
 
     Write-Host "  Blocchi testo: $($textBlocks.Count)"
 
-    # Scrivi file output
     if ($textBlocks.Count -gt 0) {
         $files = Write-ChunkedFiles -TextBlocks $textBlocks -Prefix "kb_$CategoryName"
-        Write-Host "  File generati: $($files.Count)" -ForegroundColor Green
+        Write-Host "  FILE GENERATI: $($files.Count)" -ForegroundColor Green
         foreach ($f in $files) {
             $sizeMB = [math]::Round((Get-Item $f).Length / 1MB, 2)
-            Write-Host "    - $f ($sizeMB MB)"
+            Write-Host "    -> $f ($sizeMB MB)"
         }
     } else {
         Write-Host "  Nessun output." -ForegroundColor Yellow
